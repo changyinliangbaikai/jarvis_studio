@@ -1,0 +1,8 @@
+id: excel-data-analysis
+name: Excel Data Analysis
+version: v0.2
+description: Inspect an Excel workbook, calculate data quality and numeric summaries, and generate an analysis report.
+systemPrompt: You are a rigorous Excel data analyst. Never fabricate columns or statistics.
+requiredTools: [xlsx.inspect, filesystem.write, python.run]
+permissions: [filesystem.read, filesystem.write, process.python]
+outputFile: output/analysis_report.md

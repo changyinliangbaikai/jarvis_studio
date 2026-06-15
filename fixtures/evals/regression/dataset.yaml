@@ -1,0 +1,15 @@
+id: jarvis_regression_v1
+name: Jarvis Capability Regression
+version: 1.0.0
+category: regression
+description: Excel、周报和代码审查三类能力的 15 个固定回归用例。
+owner: jarvis
+created_at: 2026-06-15
+case_glob:
+  - ../builtin.yaml
+default_runtime:
+  temperature: 0.2
+  max_iterations: 8
+  timeout_seconds: 120
+scoring_profile: regression_default
+release_gate: jarvis_regression_release_gate

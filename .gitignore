@@ -1,0 +1,11 @@
+node_modules/
+dist/
+apps/web/dist/
+storage/*.db
+storage/*.db-*
+storage/*.key
+storage/reports/
+fixtures/runtime-workspace/output/
+fixtures/runtime-workspace/.jarvis-runtime/
+*.log
+.DS_Store

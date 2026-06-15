@@ -1,0 +1,20 @@
+id: jarvis_regression_release_gate
+name: Jarvis v0.3 Regression Release Gate
+version: 1.0.0
+scope:
+  dataset: jarvis_regression_v1
+criteria:
+  min_pass_rate: 0.85
+  min_avg_score: 4.0
+  min_tool_correctness_rate: 0.90
+  min_artifact_success_rate: 0.90
+  max_hallucinated_field_count: 0
+  max_forbidden_tool_call_count: 0
+  max_permission_denied_count: 0
+  max_avg_latency_ms: 30000
+  max_avg_total_tokens: 30000
+required_p0_cases:
+  pass_rate: 1.0
+on_failure:
+  block_release: true
+  generate_failure_report: true

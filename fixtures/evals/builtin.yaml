@@ -1,0 +1,135 @@
+- id: excel_001
+  name: 客户清单异常分析
+  category: data-analysis
+  tags: [excel, anomaly]
+  input: { message: "分析客户清单，识别异常并给出营销建议。", files: [{ path: input/customer_data.xlsx, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: excel-data-analysis }
+  expected: { mustCallTools: [xlsx.inspect, python.run], mustGenerate: [{ type: markdown, nameContains: analysis_report }], mustInclude: [数据概况, 营销建议], mustNotInclude: [无法分析], constraints: { noUnauthorizedCalls: true } }
+  scoring: { maxScore: 5, dimensions: [{ name: 工具调用正确性, weight: 1 }] }
+  releaseGate: { minScore: 4, mustPass: true }
+- id: excel_002
+  name: Excel 数据概况
+  category: data-analysis
+  tags: [excel, profile]
+  input: { message: "检查 Excel 数据概况与缺失值。", files: [{ path: input/customer_data.xlsx, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: excel-data-analysis }
+  expected: { mustCallTools: [xlsx.inspect, python.run], mustGenerate: [{ type: markdown, nameContains: analysis_report }], mustInclude: [数据概况], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: excel_003
+  name: Excel 营销建议
+  category: data-analysis
+  tags: [excel, marketing]
+  input: { message: "分析客户数据并提出营销建议。", files: [{ path: input/customer_data.xlsx, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: excel-data-analysis }
+  expected: { mustCallTools: [xlsx.inspect, python.run], mustGenerate: [{ type: markdown, nameContains: analysis_report }], mustInclude: [营销建议], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: excel_004
+  name: Excel 异常发现
+  category: data-analysis
+  tags: [excel, quality]
+  input: { message: "找出表格中的异常发现。", files: [{ path: input/customer_data.xlsx, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: excel-data-analysis }
+  expected: { mustCallTools: [xlsx.inspect, python.run], mustGenerate: [{ type: markdown, nameContains: analysis_report }], mustInclude: [异常发现], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: excel_005
+  name: Excel 完整报告
+  category: data-analysis
+  tags: [excel, report]
+  input: { message: "生成完整 Excel 分析报告。", files: [{ path: input/customer_data.xlsx, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: excel-data-analysis }
+  expected: { mustCallTools: [xlsx.inspect, filesystem.write, python.run], mustGenerate: [{ type: markdown, nameContains: analysis_report }], mustInclude: [数据概况, 异常发现, 营销建议], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: weekly_001
+  name: 周报整理
+  category: office
+  tags: [weekly-report]
+  input: { message: "本周完成客户数据核对和系统联调，请整理周报。", files: [] }
+  config: { model: deterministic-local, provider: deterministic, skill: weekly-report }
+  expected: { mustCallTools: [filesystem.write], mustGenerate: [{ type: markdown, nameContains: weekly_report }], mustInclude: [本周完成, 下周计划], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: weekly_002
+  name: 周报风险提炼
+  category: office
+  tags: [weekly-report, risk]
+  input: { message: "整理本周工作、问题风险与下周计划。", files: [] }
+  config: { model: deterministic-local, provider: deterministic, skill: weekly-report }
+  expected: { mustCallTools: [filesystem.write], mustGenerate: [{ type: markdown, nameContains: weekly_report }], mustInclude: [问题与风险], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: weekly_003
+  name: 周报计划生成
+  category: office
+  tags: [weekly-report, plan]
+  input: { message: "将进展整理为包含下周计划的周报。", files: [] }
+  config: { model: deterministic-local, provider: deterministic, skill: weekly-report }
+  expected: { mustCallTools: [filesystem.write], mustGenerate: [{ type: markdown, nameContains: weekly_report }], mustInclude: [下周计划], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: weekly_004
+  name: 周报事实约束
+  category: office
+  tags: [weekly-report, factual]
+  input: { message: "根据已给信息生成事实准确的周报。", files: [] }
+  config: { model: deterministic-local, provider: deterministic, skill: weekly-report }
+  expected: { mustCallTools: [filesystem.write], mustGenerate: [{ type: markdown, nameContains: weekly_report }], mustInclude: [本周完成], mustNotInclude: [虚构], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: weekly_005
+  name: 周报结构检查
+  category: office
+  tags: [weekly-report, structure]
+  input: { message: "生成结构化周报。", files: [] }
+  config: { model: deterministic-local, provider: deterministic, skill: weekly-report }
+  expected: { mustCallTools: [filesystem.write], mustGenerate: [{ type: markdown, nameContains: weekly_report }], mustInclude: [本周完成, 问题与风险, 下周计划], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: review_001
+  name: TypeScript 代码审查
+  category: coding
+  tags: [code-review, typescript]
+  input: { message: "审查示例 TypeScript 文件。", files: [{ path: input/sample.ts, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: code-review }
+  expected: { mustCallTools: [filesystem.read, filesystem.write], mustGenerate: [{ type: markdown, nameContains: code_review }], mustInclude: [Code Review, Findings], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: review_002
+  name: 代码风险审查
+  category: coding
+  tags: [code-review, risk]
+  input: { message: "检查代码正确性和安全风险。", files: [{ path: input/sample.ts, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: code-review }
+  expected: { mustCallTools: [filesystem.read, filesystem.write], mustGenerate: [{ type: markdown, nameContains: code_review }], mustInclude: [Findings], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: review_003
+  name: 代码测试建议
+  category: coding
+  tags: [code-review, tests]
+  input: { message: "审查代码并提出测试建议。", files: [{ path: input/sample.ts, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: code-review }
+  expected: { mustCallTools: [filesystem.read, filesystem.write], mustGenerate: [{ type: markdown, nameContains: code_review }], mustInclude: [测试], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: review_004
+  name: 代码审查摘要
+  category: coding
+  tags: [code-review, summary]
+  input: { message: "给出风险优先的代码审查摘要。", files: [{ path: input/sample.ts, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: code-review }
+  expected: { mustCallTools: [filesystem.read, filesystem.write], mustGenerate: [{ type: markdown, nameContains: code_review }], mustInclude: [Summary], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }
+- id: review_005
+  name: 代码审查产物
+  category: coding
+  tags: [code-review, artifact]
+  input: { message: "审查文件并生成代码审查报告。", files: [{ path: input/sample.ts, required: true }] }
+  config: { model: deterministic-local, provider: deterministic, skill: code-review }
+  expected: { mustCallTools: [filesystem.read, filesystem.write], mustGenerate: [{ type: markdown, nameContains: code_review }], mustInclude: [Code Review], mustNotInclude: [], constraints: {} }
+  scoring: { maxScore: 5, dimensions: [] }
+  releaseGate: { minScore: 4 }

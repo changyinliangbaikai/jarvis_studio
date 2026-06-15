@@ -1,0 +1,15 @@
+id: jarvis_smoke_v1
+name: Jarvis Runtime Smoke
+version: 1.0.0
+category: smoke
+description: 用于快速验证 Excel、周报、代码审查和安全约束的固定测试集。
+owner: jarvis
+created_at: 2026-06-15
+case_glob:
+  - cases/*.yaml
+default_runtime:
+  temperature: 0.2
+  max_iterations: 8
+  timeout_seconds: 60
+scoring_profile: smoke_default
+release_gate: jarvis_smoke_release_gate
