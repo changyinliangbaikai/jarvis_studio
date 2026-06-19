@@ -1,0 +1,79 @@
+name: git.status
+version: "0.5.0"
+category: version-control
+description: Read git branch and working tree status for the configured workspace.
+risk_level: low
+default_policy: allow
+permission: process.git
+
+input_schema:
+  type: object
+  properties: {}
+  additionalProperties: false
+
+output_schema:
+  type: object
+  properties:
+    branch: { type: string }
+    clean: { type: boolean }
+    lines: { type: array }
+    stdout: { type: string }
+
+permissions:
+  filesystem:
+    read: [workspace]
+  network: false
+  shell: false
+  process: [git status]
+
+runtime:
+  sandbox: true
+  timeout_ms: 10000
+
+context_injection:
+  mode: summary
+  max_tokens: 1200
+
+---
+
+name: git.diff
+version: "0.5.0"
+category: version-control
+description: Read git diff output for the configured workspace without modifying files.
+risk_level: low
+default_policy: allow
+permission: process.git
+
+input_schema:
+  type: object
+  properties:
+    paths:
+      type: array
+      items: { type: string }
+    staged:
+      type: boolean
+  additionalProperties: false
+
+output_schema:
+  type: object
+  properties:
+    paths: { type: array }
+    staged: { type: boolean }
+    stdout: { type: string }
+    truncated: { type: boolean }
+
+permissions:
+  filesystem:
+    read: [workspace]
+  network: false
+  shell: false
+  process: [git diff]
+
+runtime:
+  sandbox: true
+  timeout_ms: 10000
+  max_stdout_tokens: 8000
+
+context_injection:
+  mode: summary
+  max_tokens: 2400

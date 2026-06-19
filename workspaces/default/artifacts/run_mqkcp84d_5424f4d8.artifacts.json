@@ -1,0 +1,19 @@
+{
+  "runId": "run_mqkcp84d_5424f4d8",
+  "taskId": "turn_b48a127c-e338-4aa9-883c-a3cebcf8711b",
+  "artifacts": [
+    {
+      "id": "artifact_a894343c-479a-4d74-be81-345b45b80066",
+      "runId": "run_mqkcp84d_5424f4d8",
+      "taskId": "turn_b48a127c-e338-4aa9-883c-a3cebcf8711b",
+      "type": "markdown",
+      "name": "analysis_report.md",
+      "path": "artifacts/analysis_report.md",
+      "mimeType": "text/markdown",
+      "sizeBytes": 586,
+      "checksum": "sha256:a3fa74706a7c26e90cb4ea7f6d2db5e151968ad4375a001f067ce8f8ddc48b14",
+      "toolCallId": "call_71dec0c6-dba9-419f-9b1a-0c1eaed82f01",
+      "createdAt": "2026-06-19T03:10:06.755Z"
+    }
+  ]
+}

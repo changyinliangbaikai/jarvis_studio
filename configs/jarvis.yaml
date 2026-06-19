@@ -1,0 +1,21 @@
+# Jarvis Agent v0.1 工作空间级配置
+# 该文件由 jarvis-cli 的 ConfigLoader 读取，定义默认工作空间与默认策略。
+workspace:
+  id: default
+  root: ./workspaces/default
+  artifact_dir: ./workspaces/default/artifacts
+  trace_dir: ./workspaces/default/traces
+  tmp_dir: ./workspaces/default/tmp
+
+defaults:
+  # 默认模型 profile，必须存在于 model-providers.yaml
+  model_profile: qwen-local
+  # 默认权限策略，必须存在于 permissions.yaml
+  permission_policy: default-safe
+  # 默认上下文预算策略，必须存在于 context-policy.yaml
+  context_policy: default-context
+  # 默认启用的 Skill 列表（由 @jarvis/skill-loader 解析）
+  skills:
+    - excel-data-analysis
+    - weekly-report
+    - code-review

@@ -1,0 +1,41 @@
+{
+  "name": "@jarvis/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jarvis Agent v0.1 独立 CLI 原型：复用 agent-runtime，输出 trace.jsonl + artifacts manifest，可被 Studio CliRuntimeAdapter 调用。",
+  "type": "module",
+  "bin": {
+    "jarvis": "./bin/jarvis.mjs"
+  },
+  "main": "./src/cli.ts",
+  "exports": {
+    ".": "./src/cli.ts",
+    "./runtime": "./src/runtime.ts",
+    "./config": "./src/config/loader.ts"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node --experimental-transform-types src/cli.ts"
+  },
+  "dependencies": {
+    "@jarvis/agent-runtime": "*",
+    "@jarvis/artifact-manager": "*",
+    "@jarvis/shared-types": "*",
+    "@jarvis/trace-sdk": "*",
+    "yaml": "*"
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "keywords": [
+    "jarvis",
+    "agent",
+    "cli",
+    "trace",
+    "runtime-adapter"
+  ]
+}

@@ -1,8 +1,0 @@
-id: weekly-report
-name: Weekly Report
-version: v0.2
-description: Turn supplied notes into a concise weekly report.
-systemPrompt: You are a factual office writing assistant. Do not invent facts.
-requiredTools: [filesystem.write]
-permissions: [filesystem.write]
-outputFile: output/weekly_report.md

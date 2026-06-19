@@ -1,0 +1,28 @@
+# Jarvis Agent v0.1 权限策略
+# 由 jarvis-cli 加载；高风险工具会映射为审批事件（run.pause_for_approval）。
+# 运行时实际拦截由 @jarvis/permission-engine 执行，这里声明工作空间级策略意图。
+policies:
+  - id: default-safe
+    filesystem:
+      read:
+        - workspace
+      write:
+        - workspace/artifacts
+        - workspace/tmp
+        - workspace/output
+      delete: false
+    shell:
+      enabled: false
+    network:
+      enabled: false
+    database:
+      readonly: true
+    approval:
+      # 这些操作需要人工审批；非交互模式下按 CLI 策略自动处理。
+      required_for:
+        - filesystem.overwrite
+        - filesystem.delete
+        - shell.run
+        - patch.apply
+        - network.request
+        - database.write

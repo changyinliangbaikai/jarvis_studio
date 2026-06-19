@@ -1,0 +1,86 @@
+name: shell.safe_run
+version: "0.5.0"
+category: execution
+description: Run an allow-listed command in the workspace. This is high risk and approval-gated by default.
+risk_level: high
+default_policy: approve
+permission: process.shell
+
+input_schema:
+  type: object
+  properties:
+    command:
+      type: array
+      items: { type: string }
+      description: "Command array, first element must be in allow-list: git, node, npm, python3."
+    timeoutMs:
+      type: number
+  required: [command]
+  additionalProperties: false
+
+output_schema:
+  type: object
+  properties:
+    exitCode: { type: number }
+    stdout: { type: string }
+    stderr: { type: string }
+    latencyMs: { type: number }
+
+permissions:
+  filesystem:
+    read: [workspace]
+    write: [workspace/output]
+  network: false
+  shell: true
+
+runtime:
+  sandbox: true
+  timeout_ms: 30000
+  max_stdout_tokens: 3000
+  max_stderr_tokens: 3000
+
+context_injection:
+  mode: summary
+  max_tokens: 1500
+
+---
+
+name: patch.apply
+version: "0.5.0"
+category: version-control
+description: Check or apply a git patch inside the workspace. Non-dry-run usage requires approval by policy.
+risk_level: high
+default_policy: approve
+permission: filesystem.write
+
+input_schema:
+  type: object
+  properties:
+    patchPath: { type: string }
+    patch: { type: string }
+    dryRun: { type: boolean }
+  additionalProperties: false
+
+output_schema:
+  type: object
+  properties:
+    dryRun: { type: boolean }
+    exitCode: { type: number }
+    stdout: { type: string }
+    stderr: { type: string }
+
+permissions:
+  filesystem:
+    read: [workspace]
+    write: [workspace]
+  network: false
+  shell: false
+  process: [git apply]
+
+runtime:
+  sandbox: true
+  timeout_ms: 15000
+
+context_injection:
+  mode: summary
+  max_tokens: 1200

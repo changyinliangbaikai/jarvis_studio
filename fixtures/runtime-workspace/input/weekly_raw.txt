@@ -1,0 +1,6 @@
+本周完成 Jarvis Studio v0.5 工作台的 Workspace、Task、Artifact、Scenario 基础闭环。
+完成模型服务商错误日志、Eval 503 串行重试、Live Runtime skill 切换联动等稳定性修复。
+问题与风险：Approval pause/resume 需要继续验证高风险工具恢复执行路径。
+问题与风险：周报和代码审查场景需要进入正式 E2E 验收。
+下周计划：补齐 Task Compare 和 Dashboard 指标。
+下周计划：把真实失败任务转换为 Eval Case 并纳入回归数据集。

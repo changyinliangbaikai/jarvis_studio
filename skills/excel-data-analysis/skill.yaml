@@ -1,0 +1,67 @@
+id: excel-data-analysis
+name: Excel Data Analysis
+version: v0.2
+description: 分析 Excel 或 CSV 数据，输出数据概况、异常点、关键发现和建议。
+category: data-analysis
+status: enabled
+
+system_prompt: You are a rigorous Excel data analyst. Never fabricate columns or statistics.
+
+tags:
+  - data-analysis
+  - excel
+  - office
+
+triggers:
+  keywords:
+    - excel
+    - xlsx
+    - 表格
+    - 客户
+    - 数据分析
+    - 异常
+    - 客户清单
+  file_types:
+    - .xlsx
+    - .xls
+    - .csv
+  intent_examples:
+    - 分析这个客户清单
+    - 找出异常数据
+    - 根据表格生成分析报告
+
+required_tools:
+  - xlsx.inspect
+  - filesystem.write
+  - python.run
+
+permissions:
+  filesystem:
+    read:
+      - workspace
+    write:
+      - workspace/output
+  process:
+    - python
+  network: false
+  shell: false
+
+outputs:
+  - markdown_report
+
+output_file: output/analysis_report.md
+
+default_task: 分析客户清单，识别异常并给出营销建议。
+default_files:
+  - input/customer_list.xlsx
+
+context_policy:
+  priority: high
+  max_tokens: 3000
+  progressive_disclosure: true
+  reload_after_compaction: true
+
+quality_gate:
+  min_eval_score: 4
+  min_success_rate: 0.85
+  max_tool_error_rate: 0.1

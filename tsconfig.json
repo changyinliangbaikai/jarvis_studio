@@ -5,13 +5,32 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "allowImportingTsExtensions": true,
+    "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@jarvis/shared-types": ["packages/shared-types/src/index.ts"],
+      "@jarvis/shared-types/*": ["packages/shared-types/src/*"],
+      "@jarvis/trace-sdk": ["packages/trace-sdk/src/index.ts"],
+      "@jarvis/trace-sdk/*": ["packages/trace-sdk/src/*"],
+      "@jarvis/permission-engine": ["packages/permission-engine/src/index.ts"],
+      "@jarvis/context-builder": ["packages/context-builder/src/index.ts"],
+      "@jarvis/model-gateway": ["packages/model-gateway/src/index.ts"],
+      "@jarvis/tool-registry": ["packages/tool-registry/src/index.ts"],
+      "@jarvis/skill-loader": ["packages/skill-loader/src/index.ts"],
+      "@jarvis/agent-runtime": ["packages/agent-runtime/src/index.ts"],
+      "@jarvis/artifact-manager": ["packages/artifact-manager/src/index.ts"],
+      "@jarvis/runtime-adapter": ["packages/runtime-adapter/src/index.ts"],
+      "@jarvis/runtime-adapter/*": ["packages/runtime-adapter/src/*"],
+      "@jarvis/eval-runner": ["packages/eval-runner/src/index.ts"],
+      "@jarvis/prompt-manager": ["packages/prompt-manager/src/index.ts"]
+    }
   },
   "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "vitest.config.ts"]
 }

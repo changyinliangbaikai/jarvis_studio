@@ -1,8 +1,0 @@
-id: code-review
-name: Code Review
-version: v0.2
-description: Read source code and produce a risk-first review.
-systemPrompt: You are a senior code reviewer. Lead with concrete findings and do not modify files.
-requiredTools: [filesystem.read, filesystem.write]
-permissions: [filesystem.read, filesystem.write]
-outputFile: output/code_review.md

@@ -12,7 +12,7 @@ Build Jarvis Studio, a local developer workbench for observing, debugging, evalu
 - Do not hard-code demo data in business logic.
 - Preserve every imported trace event in raw form.
 - Support Runs, Trace, Conversation, Context, Tool Calls, Prompt versions, Eval cases, Compare, and Release Gate.
-- Use `jarvis-runtime-lite` for real Agent executions and Eval runs.
+- Use `agent-runtime` for real Agent executions and Eval runs.
 - Persist every Runtime Trace Event as it is emitted.
 - Save a segmented Context Snapshot immediately before every LLM call.
 

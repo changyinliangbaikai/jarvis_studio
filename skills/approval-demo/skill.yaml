@@ -1,0 +1,37 @@
+id: approval-demo
+name: Approval Demo
+version: v0.1
+description: 触发需审批的 shell 命令，用于验证 TaskRunner 暂停/恢复行为。
+category: governance
+status: enabled
+
+system_prompt: You validate approval pause and resume behavior. Do not modify files.
+
+tags:
+  - governance
+  - approval
+  - demo
+
+triggers:
+  keywords:
+    - approval
+    - 审批
+    - demo
+    - shell
+  file_types: []
+  intent_examples:
+    - 测试审批流程
+    - 验证暂停恢复行为
+
+required_tools:
+  - shell.safe_run
+
+permissions:
+  process:
+    - shell
+  network: false
+
+outputs: []
+
+default_task: Run an allow-listed read-only shell command after approval.
+default_files: []

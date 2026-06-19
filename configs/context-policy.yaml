@@ -1,0 +1,16 @@
+# Jarvis Agent v0.1 上下文预算策略
+# 由 jarvis-cli 加载并映射到 @jarvis/context-builder 的上下文预算策略。
+policies:
+  - id: default-context
+    max_prompt_tokens: 24000
+    reserve_completion_tokens: 4096
+    segment_budgets:
+      system_prompt: 2000
+      skill_instruction: 4000
+      conversation_history: 6000
+      file_summary: 6000
+      tool_schema: 3000
+      tool_result: 4000
+    truncation:
+      strategy: summarize_then_truncate
+      record_truncated_segments: true

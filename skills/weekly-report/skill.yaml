@@ -1,0 +1,59 @@
+id: weekly-report
+name: Weekly Report
+version: v0.2
+description: 根据用户提供的进展笔记，生成结构化周报。
+category: office
+status: enabled
+
+system_prompt: You are a factual office writing assistant. Do not invent facts.
+
+tags:
+  - office
+  - report
+  - writing
+
+triggers:
+  keywords:
+    - 周报
+    - 报告
+    - 总结
+    - 计划
+  file_types:
+    - .md
+    - .txt
+  intent_examples:
+    - 生成本周工作周报
+    - 整理工作进展
+
+required_tools:
+  - filesystem.read
+  - filesystem.write
+  - docx.write
+
+permissions:
+  filesystem:
+    read:
+      - workspace
+    write:
+      - workspace/output
+  network: false
+  shell: false
+
+outputs:
+  - markdown_report
+  - docx_document
+
+output_file: output/weekly_report.md
+
+default_task: 根据本周进展整理一份结构化周报，包含本周完成、问题与风险、下周计划。
+default_files: []
+
+context_policy:
+  priority: medium
+  max_tokens: 2400
+  progressive_disclosure: true
+
+quality_gate:
+  min_eval_score: 4
+  min_success_rate: 0.85
+  max_tool_error_rate: 0.1

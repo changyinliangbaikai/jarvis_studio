@@ -1,0 +1,25 @@
+{
+  "name": "@jarvis/studio-server",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/main.ts",
+  "dependencies": {
+    "@jarvis/agent-runtime": "*",
+    "@jarvis/eval-runner": "*",
+    "@jarvis/model-gateway": "*",
+    "@jarvis/permission-engine": "*",
+    "@jarvis/prompt-manager": "*",
+    "@jarvis/runtime-adapter": "*",
+    "@jarvis/shared-types": "*",
+    "@jarvis/skill-loader": "*",
+    "@jarvis/tool-registry": "*",
+    "@jarvis/trace-sdk": "*",
+    "@fastify/cors": "*",
+    "@fastify/static": "*",
+    "fastify": "*",
+    "xlsx": "*",
+    "yaml": "*",
+    "zod": "*"
+  }
+}

@@ -1,0 +1,38 @@
+# Jarvis Agent v0.1 大模型服务商配置
+# 字段兼容 Jarvis Studio 的 ModelProviderProfile（services/model-providers.ts）。
+# 同时支持 snake_case 与 camelCase；CLI 会统一归一化。
+# 安全要求：
+#   1. API Key 只通过 api_key_env 引用环境变量名，绝不在此明文存放。
+#   2. Trace 中只记录 model_profile_id / provider / model，绝不记录密钥。
+profiles:
+  # OpenAI 兼容的本地模型（如 LM Studio / vLLM / Ollama-openai）。
+  - id: qwen-local
+    provider: openai-compatible
+    name: Qwen Local (OpenAI Compatible)
+    base_url: http://localhost:1234/v1
+    api_key_env: QWEN_LOCAL_API_KEY
+    model: qwen2.5-7b-instruct
+    default_parameters:
+      temperature: 0.2
+      max_tokens: 4096
+      top_p: 0.9
+
+  # Anthropic 风格 profile（v0.1 暂以 openai-compatible 网关代理；保留以兼容 Studio 字段）。
+  - id: claude-opus
+    provider: openai-compatible
+    name: Claude Opus (via gateway)
+    base_url: http://localhost:1234/v1
+    api_key_env: ANTHROPIC_API_KEY
+    model: claude-opus-4.8
+    default_parameters:
+      temperature: 0.2
+      max_tokens: 4096
+
+  # 确定性本地 Runtime：无需任何外部模型服务即可离线跑通端到端链路，便于 CI 与冒烟测试。
+  - id: deterministic-default
+    provider: deterministic
+    name: Deterministic Runtime (Local)
+    model: jarvis-sim-1
+    default_parameters:
+      temperature: 0.2
+      max_tokens: 2048

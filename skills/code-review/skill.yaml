@@ -1,0 +1,66 @@
+id: code-review
+name: Code Review
+version: v0.2
+description: 读取源代码，输出以风险为优先级的代码审查报告。
+category: coding
+status: enabled
+
+system_prompt: You are a senior code reviewer. Lead with concrete findings and do not modify files.
+
+tags:
+  - coding
+  - review
+  - quality
+
+triggers:
+  keywords:
+    - review
+    - 代码
+    - diff
+    - 审查
+    - bug
+    - 修复
+  file_types:
+    - .ts
+    - .tsx
+    - .js
+    - .py
+    - .swift
+  intent_examples:
+    - 审查这段代码
+    - 找出风险和缺少的测试
+
+required_tools:
+  - git.status
+  - git.diff
+  - filesystem.write
+
+permissions:
+  filesystem:
+    read:
+      - workspace
+    write:
+      - workspace/output
+  process:
+    - git
+  network: false
+  shell: false
+
+outputs:
+  - markdown_report
+
+output_file: output/code_review.md
+
+default_task: 审查示例代码，指出主要风险并给出测试建议。
+default_files:
+  - input/sample.ts
+
+context_policy:
+  priority: high
+  max_tokens: 4000
+  progressive_disclosure: true
+
+quality_gate:
+  min_eval_score: 4
+  min_success_rate: 0.85
+  max_tool_error_rate: 0.1

@@ -1,0 +1,32 @@
+import { useCallback, useEffect, useState } from 'react';
+import { ThemedSelect } from "../components/ThemedSelect.tsx";
+import { FileInput, ShieldCheck, ShieldX } from 'lucide-react';
+import { api, post } from '../api.ts';
+import { Empty, JsonView, Loading, PageHeader, StatusBadge } from '../components/Primitives.tsx';
+import { useAsyncResource } from '../hooks/useAsyncResource.ts';
+import { formatDate } from '../utils/format.ts';
+import type { EvalRun, GateResult, ReleaseGate } from '../evalTypes.ts';
+
+export function ReleaseGatesPage() {
+  const [selectedRun, setSelectedRun] = useState('');
+  const [yaml, setYaml] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const load = useCallback(async (signal: AbortSignal) => {
+    const [gates, runs, results] = await Promise.all([api<ReleaseGate[]>('/api/release-gates', { signal }), api<EvalRun[]>('/api/eval/runs', { signal }), api<GateResult[]>('/api/release-gates/results', { signal })]);
+    return { gates, runs: runs.filter((item) => item.status === 'completed'), results };
+  }, []);
+  const resource = useAsyncResource(load, [], true, { queryKey: ['release-gates'] });
+  const gates = resource.data?.gates ?? [];
+  const runs = resource.data?.runs ?? [];
+  const results = resource.data?.results ?? [];
+  useEffect(() => {
+    setSelectedRun((current) => current || runs[0]?.id || '');
+  }, [runs]);
+  if (!resource.data) return <Loading />;
+  return <section><PageHeader eyebrow="09 / 发布门禁 (Release Gates)" title="发布联锁 (Release Interlock)" description="将可配置 YAML 策略应用到某次 Eval Run，输出可追溯的准入或阻断证据。" actions={<button onClick={() => setShowImport(true)}><FileInput size={14} />导入 Gate YAML</button>} />
+    {resource.error && <div className="notice warning">{resource.error}</div>}
+    <div className="gate-registry">{gates.map((gate) => <article className="panel gate-policy" key={gate.id}><div className="panel-title"><ShieldCheck size={14} />{gate.name}<span>{gate.version}</span></div><code>{gate.id}</code><JsonView value={gate.criteria} /><div className="gate-evaluate"><ThemedSelect value={selectedRun} onChange={(event) => setSelectedRun(event.target.value)}><option value="">选择 Eval Run</option>{runs.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</ThemedSelect><button className="primary" disabled={!selectedRun} onClick={() => void post(`/api/release-gates/${gate.id}/evaluate`, { evalRunId: selectedRun }).then(() => resource.reload())}>执行 Gate</button></div></article>)}</div>
+    <div className="section-bar"><div>Gate 执行结果</div><span>{results.length}</span></div>{results.length ? <div className="table-wrap"><table><thead><tr><th>Gate</th><th>Eval Run</th><th>决策</th><th>失败条件</th><th>创建时间</th></tr></thead><tbody>{results.map((item) => <tr key={item.id}><td className="run-name"><strong>{item.gateName}</strong><span>{item.gateId}</span></td><td>{item.evalRunId}</td><td>{item.passed ? <StatusBadge status="success" /> : <StatusBadge status="failed" />}</td><td>{item.failedCriteria.map((check) => check.label).join(', ') || '—'}</td><td>{formatDate(item.createdAt)}</td></tr>)}</tbody></table></div> : <Empty>尚未执行 Release Gate。</Empty>}
+    {showImport && <div className="modal-backdrop" onClick={() => setShowImport(false)}><div className="modal" onClick={(event) => event.stopPropagation()}><span className="eyebrow">Release Gate YAML</span><h2>导入准入策略</h2><textarea rows={18} value={yaml} onChange={(event) => setYaml(event.target.value)} placeholder="id: release_gate_v1&#10;name: ...&#10;criteria: ..." /><div className="modal-actions"><button onClick={() => setShowImport(false)}>取消</button><button className="primary" disabled={!yaml.trim()} onClick={() => void post('/api/release-gates/import', { content: yaml }).then(() => { setShowImport(false); setYaml(''); return resource.reload(); })}>导入</button></div></div></div>}
+  </section>;
+}

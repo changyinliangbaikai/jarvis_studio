@@ -1,0 +1,80 @@
+name: filesystem.read
+version: "0.4.0"
+category: filesystem
+description: Read a UTF-8 text file inside the configured workspace.
+risk_level: low
+default_policy: allow
+permission: filesystem.read
+
+input_schema:
+  type: object
+  properties:
+    path:
+      type: string
+      description: Relative path inside workspace.
+  required: [path]
+  additionalProperties: false
+
+output_schema:
+  type: object
+  properties:
+    path: { type: string }
+    content: { type: string }
+    sizeBytes: { type: number }
+    sha256: { type: string }
+
+permissions:
+  filesystem:
+    read: [workspace]
+  network: false
+  shell: false
+
+runtime:
+  sandbox: true
+  timeout_ms: 5000
+
+context_injection:
+  mode: summary
+  max_tokens: 1200
+
+---
+
+name: filesystem.write
+version: "0.4.0"
+category: filesystem
+description: Write UTF-8 content to a file inside the configured workspace.
+risk_level: medium
+default_policy: allow
+permission: filesystem.write
+
+input_schema:
+  type: object
+  properties:
+    path:
+      type: string
+      description: Relative path inside workspace (only workspace/output and workspace/.jarvis-runtime allowed).
+    content:
+      type: string
+  required: [path, content]
+  additionalProperties: false
+
+output_schema:
+  type: object
+  properties:
+    path: { type: string }
+    sizeBytes: { type: number }
+    sha256: { type: string }
+
+permissions:
+  filesystem:
+    write: [workspace/output, workspace/.jarvis-runtime]
+  network: false
+  shell: false
+
+runtime:
+  sandbox: true
+  timeout_ms: 10000
+
+context_injection:
+  mode: summary
+  max_tokens: 800
