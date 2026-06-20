@@ -6,11 +6,13 @@ import { resolve } from 'node:path';
 // 显式触发数据库初始化（目录/schema/迁移/seed），便于把潜在的 IO/权限错误集中在引导阶段处理，
 // 而不是隐藏在某个路由首次访问时才崩溃。initializeDatabase() 幂等。
 import { initializeDatabase } from './db/database.ts';
+import { agentsRoutes } from './routes/agents.ts';
 import { runsRoutes } from './routes/runs.ts';
 import { sessionsRoutes } from './routes/sessions.ts';
 import { contextRoutes } from './routes/context.ts';
 import { toolsRoutes } from './routes/tools.ts';
 import { promptsRoutes } from './routes/prompts.ts';
+import { playgroundRoutes } from './routes/playground.ts';
 import { evalRoutes } from './routes/evals.ts';
 import { compareRoutes } from './routes/compare.ts';
 import { runtimeRoutes } from './routes/runtime.ts';
@@ -40,11 +42,13 @@ app.setErrorHandler((error, request, reply) => {
   });
 });
 await app.register(cors, { origin: true });
+await app.register(agentsRoutes);
 await app.register(runsRoutes);
 await app.register(sessionsRoutes);
 await app.register(contextRoutes);
 await app.register(toolsRoutes);
 await app.register(promptsRoutes);
+await app.register(playgroundRoutes);
 await app.register(evalRoutes);
 await app.register(compareRoutes);
 await app.register(modelProviderRoutes);
@@ -52,7 +56,7 @@ await app.register(governanceRoutes);
 await app.register(workbenchRoutes);
 await app.register(runtimeRoutes);
 
-app.get('/api/health', () => ({ status: 'ok', version: '0.5.0' }));
+app.get('/api/health', () => ({ status: 'ok', version: '0.6.0' }));
 
 const webDist = resolve(import.meta.dirname, '../../jarvis-studio-web/dist');
 if (existsSync(webDist)) {
