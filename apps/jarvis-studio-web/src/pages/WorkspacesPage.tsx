@@ -153,6 +153,10 @@ export function WorkspacesPage() {
   };
   if (loading && !items) return <Loading />;
   const displayItems = items ?? [];
+  const providerOptions = options.data?.providers ?? [];
+  const policyOptionsData = options.data?.policies ?? [];
+  const contextOptionsData = options.data?.contextStrategies ?? [];
+  const selectedModelLabel = selected ? modelProviderLabel(providerOptions, selected.defaultModelProfileId) : '—';
   return <section>
     <PageHeader eyebrow="V0.5 / Eval Workspace" title="评测空间" description="评测空间用于隔离 Agent Runtime 场景验证的输入、上下文、运行产物和策略配置。Studio 中的任务均为测试任务，用于评估不同模型、Prompt、Skill、Tool 和上下文策略下的 Agent 表现。"
       actions={<button onClick={() => void refresh()}><RefreshCw size={14} />刷新</button>} />
@@ -161,7 +165,7 @@ export function WorkspacesPage() {
       <Metric label="EVAL WORKSPACES" value={displayItems.length} tone="cyan" />
       <Metric label="TEST TASKS" value={displayItems.reduce((sum, item) => sum + item.taskCount, 0)} />
       <Metric label="RUN ARTIFACTS" value={displayItems.reduce((sum, item) => sum + item.artifactCount, 0)} tone="amber" />
-      <Metric label="MODEL" value={selected?.defaultModelProfileId ?? '—'} />
+      <Metric label="MODEL" value={selectedModelLabel} />
       <Metric label="STATUS" value="v0.5 ready" tone="green" />
     </div>
     <ListDetailLayout>
@@ -170,12 +174,12 @@ export function WorkspacesPage() {
         {displayItems.map((item) => <button key={item.id} className={selectedId === item.id ? 'active' : ''} onClick={() => setSelectedId(item.id)}>
           <StatusBadge status="ready" />
           <div><strong>{item.name}</strong><span>{item.rootPath}</span><p>{item.taskCount} test tasks · {item.artifactCount} run artifacts</p></div>
-          <aside><b>{item.defaultModelProfileId ?? 'default'}</b><span>{item.defaultContextPolicyId}</span></aside>
+          <aside><b>{modelProviderShortLabel(providerOptions, item.defaultModelProfileId)}</b><span>{item.defaultContextPolicyId}</span></aside>
         </button>)}
         <div className="mini-form">
           <label>评测空间名称<input placeholder="例如：Excel Agent 回归空间" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
           <label>Root Path<input placeholder="可留空使用 Demo Eval Workspace" value={form.rootPath} onChange={(event) => setForm({ ...form, rootPath: event.target.value })} /></label>
-          <WorkspaceOptionFields form={form} providers={options.data?.providers ?? []} policies={options.data?.policies ?? []} contextStrategies={options.data?.contextStrategies ?? []} onChange={setForm} />
+          <WorkspaceOptionFields form={form} providers={providerOptions} policies={policyOptionsData} contextStrategies={contextOptionsData} onChange={setForm} />
           <button className="primary" disabled={!form.name.trim()} onClick={() => void create()}><Plus size={14} />新建评测空间</button>
         </div>
       </EntityListPanel>
@@ -191,13 +195,13 @@ export function WorkspacesPage() {
             <div className="run-form-grid task-form-grid">
               <label>评测空间名称<input placeholder="例如：Excel Agent 回归空间" value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} /></label>
               <label>Root Path<input placeholder="可留空继续使用当前工作空间目录" value={editForm.rootPath} onChange={(event) => setEditForm({ ...editForm, rootPath: event.target.value })} /></label>
-              <WorkspaceOptionFields form={editForm} providers={options.data?.providers ?? []} policies={options.data?.policies ?? []} contextStrategies={options.data?.contextStrategies ?? []} onChange={setEditForm} wideContext />
+              <WorkspaceOptionFields form={editForm} providers={providerOptions} policies={policyOptionsData} contextStrategies={contextOptionsData} onChange={setEditForm} wideContext />
             </div>
             <div className="modal-actions"><button onClick={() => setEditing(false)}><X size={14} />取消</button><button className="primary" disabled={busy === 'save' || !editForm.name.trim()} onClick={() => void save()}><Save size={14} />{busy === 'save' ? '保存中' : '保存修改'}</button></div>
           </div>}
           <div className="registry-facts">
             <span>Root<b>{selected.rootPath}</b></span>
-            <span>Model<b>{selected.defaultModelProfileId ?? '—'}</b></span>
+            <span>Model<b>{selectedModelLabel}</b></span>
             <span>Policy<b>{selected.defaultPolicyId ?? '—'}</b></span>
             <span>Context<b>{selected.defaultContextPolicyId ?? '—'}</b></span>
           </div>
@@ -286,6 +290,19 @@ function preferredContextStrategyId(strategies: ContextStrategy[]) {
 function modelProviderOptions(providers: ModelProvider[], currentId: string) {
   if (!currentId || providers.some((item) => item.id === currentId)) return providers;
   return [{ id: currentId, name: `当前配置 ${currentId}`, defaultModel: currentId, enabled: true, isDefault: false, source: 'workspace' }, ...providers];
+}
+
+function modelProviderLabel(providers: ModelProvider[], id?: string) {
+  if (!id) return '系统默认模型';
+  const provider = providers.find((item) => item.id === id);
+  if (!provider) return `未知模型配置 (${id})`;
+  return `${provider.name} · ${provider.defaultModel}${provider.enabled ? '' : ' · 停用'}`;
+}
+
+function modelProviderShortLabel(providers: ModelProvider[], id?: string) {
+  if (!id) return 'default';
+  const provider = providers.find((item) => item.id === id);
+  return provider?.name ?? id;
 }
 
 function policyOptions(policies: PermissionPolicy[], currentId: string) {

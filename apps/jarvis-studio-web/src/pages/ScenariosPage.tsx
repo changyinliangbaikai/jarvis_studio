@@ -67,6 +67,9 @@ const postflightPresets: RulePreset[] = [
   { id: 'no_source_file_changed_without_approval', label: '高风险修改审批', description: '确认源代码修改类工具调用已经审批。' }
 ];
 
+const defaultExcelInputFile = 'input/customer_data.xlsx';
+const defaultDocumentInputFile = 'input/weekly_raw.txt';
+
 const blankScenarioForm: ScenarioForm = {
   name: '客户清单异常分析',
   category: 'data-analysis',
@@ -83,7 +86,7 @@ const blankScenarioForm: ScenarioForm = {
 export function ScenariosPage() {
   const [selectedId, setSelectedId] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
-  const [inputFiles, setInputFiles] = useState('input/customer_data.xlsx');
+  const [inputFiles, setInputFiles] = useState(defaultExcelInputFile);
   const [preflight, setPreflight] = useState<unknown>();
   const [editingMode, setEditingMode] = useState<'new' | 'edit' | ''>('');
   const [form, setForm] = useState<ScenarioForm>(blankScenarioForm);
@@ -107,6 +110,10 @@ export function ScenariosPage() {
     setSelectedId((current) => current || data.items[0]?.id || '');
     setWorkspaceId((current) => current || data.workspaces[0]?.id || '');
   }, [resource.data]);
+  useEffect(() => {
+    if (!selected) return;
+    setInputFiles(defaultInputFilesForScenario(selected));
+  }, [selected?.id]);
   const runPreflight = async () => {
     if (!selected) return;
     setNotice('');
@@ -228,12 +235,12 @@ function ScenarioDetail({ scenario, preflight, workspaceId, workspaces, inputFil
       <span>Outputs<b>{scenario.defaultOutputs.length}</b></span>
     </div>
     <div className="scenario-rule-summary">
-      <RuleSummary title="Preflight 规则" rules={scenario.preflight} presets={preflightPresets} />
-      <RuleSummary title="Postflight 规则" rules={scenario.postflight} presets={postflightPresets} />
+      <RuleSummary title="Preflight 规则" rules={scenario.preflight} presets={preflightPresets} tone="preflight" />
+      <RuleSummary title="Postflight 规则" rules={scenario.postflight} presets={postflightPresets} tone="postflight" />
     </div>
     <div className="scenario-preflight">
       <label>验证空间<ThemedSelect value={workspaceId} onChange={(event) => onWorkspace(event.target.value)}>{workspaces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</ThemedSelect></label>
-      <label>输入文件<textarea rows={2} placeholder="input/customer_data.xlsx" value={inputFiles} onChange={(event) => onInputFiles(event.target.value)} /></label>
+      <label>输入文件<textarea rows={2} placeholder={defaultInputFilesForScenario(scenario) || '该场景不需要输入文件'} value={inputFiles} onChange={(event) => onInputFiles(event.target.value)} /></label>
       <button className="primary" onClick={onPreflight}><PlayCircle size={14} />运行 Preflight</button>
     </div>
     <div className="workbench-split">
@@ -293,8 +300,8 @@ function RuleBuilder({ title, presets, rules, customRules, onChange }: {
   </div>;
 }
 
-function RuleSummary({ title, rules, presets }: { title: string; rules: unknown[]; presets: RulePreset[] }) {
-  return <div className="panel rule-summary">
+function RuleSummary({ title, rules, presets, tone }: { title: string; rules: unknown[]; presets: RulePreset[]; tone: 'preflight' | 'postflight' }) {
+  return <div className={`panel rule-summary rule-summary-${tone}`}>
     <div className="panel-title">{title}<span>{rules.length}</span></div>
     {rules.length ? <div className="rule-summary-list">{rules.map((rule, index) => {
       const id = checkId(rule);
@@ -352,6 +359,19 @@ function scenarioPayload(form: ScenarioForm) {
     preflight: [...form.customPreflight, ...preflightRules(form.preflight)],
     postflight: [...form.customPostflight, ...postflightRules(form.postflight)]
   };
+}
+
+function defaultInputFilesForScenario(scenario: Scenario) {
+  const preflightIds = new Set(scenario.preflight.map(checkId));
+  const skill = scenario.defaultSkillId?.toLowerCase() ?? '';
+  const category = scenario.category?.toLowerCase() ?? '';
+  if (preflightIds.has('input_file_is_txt_or_docx') || skill.includes('weekly') || skill.includes('doc') || category.includes('office')) {
+    return defaultDocumentInputFile;
+  }
+  if (preflightIds.has('input_file_is_xlsx_or_csv') || skill.includes('excel') || category.includes('data')) {
+    return defaultExcelInputFile;
+  }
+  return preflightIds.has('input_file_exists') ? defaultExcelInputFile : '';
 }
 
 function preflightRules(rules: RuleDraft[]) {
