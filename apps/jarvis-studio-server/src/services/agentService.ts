@@ -12,6 +12,13 @@ export interface AgentInput {
   outputMode?: string;
 }
 
+export interface AgentRecord extends AgentInput {
+  id: string;
+  settings: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 let ensured = false;
 
 function ensureAgentsSchema() {
@@ -50,20 +57,24 @@ function ensureAgentsSchema() {
   ensured = true;
 }
 
-function normalizeAgent(row: Record<string, unknown>) {
+function text(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function normalizeAgent(row: Record<string, unknown>): AgentRecord {
   return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    defaultPromptId: row.default_prompt_id,
-    defaultModelProviderId: row.default_model_provider_id,
-    defaultSkillId: row.default_skill_id,
-    defaultContextStrategyId: row.default_context_strategy_id,
-    defaultToolPolicyId: row.default_tool_policy_id,
-    outputMode: row.output_mode,
-    settings: parseJson(row.settings_json, {}),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    id: String(row.id),
+    name: String(row.name),
+    description: text(row.description),
+    defaultPromptId: text(row.default_prompt_id),
+    defaultModelProviderId: text(row.default_model_provider_id),
+    defaultSkillId: text(row.default_skill_id),
+    defaultContextStrategyId: text(row.default_context_strategy_id),
+    defaultToolPolicyId: text(row.default_tool_policy_id),
+    outputMode: text(row.output_mode) ?? 'markdown',
+    settings: parseJson<Record<string, unknown>>(row.settings_json, {}),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at)
   };
 }
 
@@ -109,7 +120,7 @@ export function updateAgent(id: string, input: Partial<AgentInput>) {
   const now = new Date().toISOString();
   run(`UPDATE agents SET name=?, description=?, default_prompt_id=?, default_model_provider_id=?, default_skill_id=?,
     default_context_strategy_id=?, default_tool_policy_id=?, output_mode=?, updated_at=? WHERE id=?`,
-    input.name ?? String(current.name),
+    input.name ?? current.name,
     input.description ?? current.description ?? null,
     input.defaultPromptId ?? current.defaultPromptId ?? null,
     input.defaultModelProviderId ?? current.defaultModelProviderId ?? null,
