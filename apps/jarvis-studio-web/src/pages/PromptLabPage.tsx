@@ -1,56 +1,147 @@
-import { useCallback, useEffect, useState } from 'react';
-import { FlaskConical, GitCommitVertical, Plus, Save, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { GitCommitVertical, Plus, Rocket, Save } from 'lucide-react';
 import { api, post } from '../api.ts';
-import { Empty, Loading, PageHeader } from '../components/Primitives.tsx';
+import { Empty, Loading, PageHeader, StatusBadge } from '../components/Primitives.tsx';
 import { useAsyncResource } from '../hooks/useAsyncResource.ts';
 
-interface Prompt { id: string; name: string; version: string; content: string; variables: string[]; linkedSkill?: string; changelog?: string; createdAt: string }
+interface Agent { id: string; name: string; defaultPromptId?: string }
+interface Prompt {
+  id: string;
+  agentId?: string;
+  name: string;
+  version: string;
+  status: 'draft' | 'active' | 'archived';
+  content: string;
+  systemPrompt?: string;
+  developerPrompt?: string;
+  userTemplate?: string;
+  variables: string[];
+  linkedSkill?: string;
+  changelog?: string;
+  outputSchema?: unknown;
+  toolPolicy?: unknown;
+  successCriteria?: unknown;
+  riskNotes?: string;
+  updatedAt: string;
+}
+
+function pretty(value: unknown) {
+  try { return JSON.stringify(value ?? {}, null, 2); } catch { return '{}'; }
+}
+function parseJson(text: string) {
+  try { return JSON.parse(text || '{}'); } catch { throw new Error('JSON 格式不正确'); }
+}
+
 export function PromptLabPage() {
   const [selectedId, setSelectedId] = useState('');
-  const [content, setContent] = useState('');
-  const [input, setInput] = useState('分析 customer_list.xlsx');
-  const [result, setResult] = useState('');
-  const [creating, setCreating] = useState(false);
-  const load = useCallback((signal: AbortSignal) => api<Prompt[]>('/api/prompts', { signal }), []);
-  const resource = useAsyncResource(load, [], true, { queryKey: ['prompts'] });
-  const prompts = resource.data;
+  const [message, setMessage] = useState('');
+  const [form, setForm] = useState({
+    name: '', agentId: '', systemPrompt: '', developerPrompt: '', userTemplate: '', changelog: '',
+    outputSchema: '{}', toolPolicy: '{}', successCriteria: '{}', riskNotes: ''
+  });
+  const loadPrompts = useCallback((signal: AbortSignal) => api<Prompt[]>('/api/prompts', { signal }), []);
+  const loadAgents = useCallback((signal: AbortSignal) => api<Agent[]>('/api/agents', { signal }), []);
+  const promptsResource = useAsyncResource(loadPrompts, [], true, { queryKey: ['prompts'] });
+  const agentsResource = useAsyncResource(loadAgents, [], true, { queryKey: ['agents', 'prompt-page'] });
+  const prompts = promptsResource.data;
+  const agents = agentsResource.data ?? [];
   const selected = prompts?.find((prompt) => prompt.id === selectedId) ?? prompts?.[0];
+  const versions = useMemo(() => prompts?.filter((prompt) => prompt.name === selected?.name) ?? [], [prompts, selected?.name]);
+
   useEffect(() => {
     if (prompts) setSelectedId((value) => value || prompts[0]?.id || '');
   }, [prompts]);
-  useEffect(() => { if (selected) setContent(selected.content); }, [selected?.id]);
-  const createVersion = async () => {
-    if (!selected) return;
-    const next = await post<Prompt>(`/api/prompts/${selected.id}/new-version`, { content, changelog: '由 Prompt Lab 创建' });
-    await resource.reload(); setSelectedId(next.id); setResult(`已创建 ${next.name}@${next.version}`);
-  };
+  useEffect(() => {
+    if (selected) setForm({
+      name: selected.name,
+      agentId: selected.agentId ?? '',
+      systemPrompt: selected.systemPrompt ?? selected.content,
+      developerPrompt: selected.developerPrompt ?? '',
+      userTemplate: selected.userTemplate ?? '',
+      changelog: selected.changelog ?? '',
+      outputSchema: pretty(selected.outputSchema),
+      toolPolicy: pretty(selected.toolPolicy),
+      successCriteria: pretty(selected.successCriteria),
+      riskNotes: selected.riskNotes ?? ''
+    });
+  }, [selected?.id]);
+
   const createPrompt = async () => {
-    const item = await post<Prompt>('/api/prompts', { name: 'new-prompt', version: 'v0.1', content: '请处理以下任务：{{input}}', changelog: 'Prompt Lab 新建' });
-    await resource.reload(); setSelectedId(item.id); setCreating(false);
+    const item = await post<Prompt>('/api/prompts', {
+      name: 'new-agent-prompt',
+      agentId: agents[0]?.id,
+      status: 'draft',
+      systemPrompt: '你是一个可靠的 AI Agent，请先理解任务，再给出可执行结果。',
+      developerPrompt: '遵循工具边界，输出需要可复盘。',
+      userTemplate: '{{input}}',
+      changelog: 'v0.6 Prompt 管理新建'
+    });
+    await promptsResource.reload();
+    setSelectedId(item.id);
   };
-  const test = async () => {
+  const saveVersion = async (status: 'draft' | 'active' = 'draft') => {
     if (!selected) return;
-    const variables = Object.fromEntries(selected.variables.map((variable) => [variable, variable === 'file_name' ? 'customer_list.xlsx' : input]));
-    const data = await post<{ runId: string; rendered: string; response: string }>(`/api/prompts/${selected.id}/test`, { variables, inputMessage: input });
-    setResult(`${data.response}\n\nRun: ${data.runId}\n\n--- Rendered Prompt ---\n${data.rendered}`);
+    try {
+      const item = await post<Prompt>(`/api/prompts/${selected.id}/new-version`, {
+        name: form.name,
+        agentId: form.agentId || undefined,
+        status,
+        systemPrompt: form.systemPrompt,
+        developerPrompt: form.developerPrompt,
+        userTemplate: form.userTemplate,
+        changelog: form.changelog || `由 ${selected.version} 创建`,
+        outputSchema: parseJson(form.outputSchema),
+        toolPolicy: parseJson(form.toolPolicy),
+        successCriteria: parseJson(form.successCriteria),
+        riskNotes: form.riskNotes
+      });
+      await promptsResource.reload();
+      await agentsResource.reload();
+      setSelectedId(item.id);
+      setMessage(status === 'active' ? `已发布 ${item.name}@${item.version}` : `已保存草稿 ${item.name}@${item.version}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '保存失败');
+    }
   };
-  if (!prompts) return <Loading />;
+  const activate = async () => {
+    if (!selected) return;
+    const item = await post<Prompt>(`/api/prompts/${selected.id}/activate`, {});
+    await promptsResource.reload();
+    await agentsResource.reload();
+    setSelectedId(item.id);
+    setMessage(`已发布 ${item.name}@${item.version}`);
+  };
+  const archive = async () => {
+    if (!selected) return;
+    const item = await post<Prompt>(`/api/prompts/${selected.id}/archive`, {});
+    await promptsResource.reload();
+    setSelectedId(item.id);
+    setMessage(`已归档 ${item.name}@${item.version}`);
+  };
+
+  if (!prompts || !agentsResource.data) return <Loading />;
   return <section>
-    <PageHeader eyebrow="06 / Prompt 实验室" title="Prompt 版本工坊 (Version Foundry)" description="版本化 Prompt、渲染变量，并通过 Mock Runtime 把测试结果自动写入 Runs。"
-      actions={<button onClick={() => setCreating(true)}><Plus size={15} />新建 Prompt</button>} />
-    {resource.error && <div className="notice warning">{resource.error}</div>}
+    <PageHeader eyebrow="02 / Prompts" title="Prompt 管理" description="Prompt 是 Agent 的第一入口。这里管理 System / Developer / User Template、工具策略、输出规范和版本状态。" actions={<button onClick={() => void createPrompt()}><Plus size={15} />新建 Prompt</button>} />
+    {(promptsResource.error || agentsResource.error || message) && <div className="notice warning">{promptsResource.error || agentsResource.error || message}</div>}
     {prompts.length === 0 ? <Empty>还没有 Prompt 版本。</Empty> : <div className="prompt-layout">
-      <div className="panel prompt-list"><div className="panel-title"><GitCommitVertical size={15} />版本谱系 (Version Lineage)</div>{prompts.map((prompt) =>
+      <div className="panel prompt-list"><div className="panel-title"><GitCommitVertical size={15} />版本谱系<span>{versions.length || prompts.length}</span></div>{prompts.map((prompt) =>
         <button key={prompt.id} className={selected?.id === prompt.id ? 'active' : ''} onClick={() => setSelectedId(prompt.id)}>
-          <div><strong>{prompt.name}</strong><span>{prompt.changelog}</span></div><b>{prompt.version}</b>
+          <div><strong>{prompt.name}</strong><span>{prompt.changelog || '无版本说明'}</span></div><b>{prompt.version}</b>
         </button>)}</div>
-      <div className="panel editor-panel"><div className="editor-toolbar"><div><span className="eyebrow">正在编辑</span><h2>{selected?.name}@{selected?.version}</h2></div><button className="primary" onClick={() => void createVersion()}><Save size={15} />另存新版本</button></div>
-        <div className="editor-meta"><span>关联 Skill <b>{selected?.linkedSkill ?? '无'}</b></span><span>变量 <b>{selected?.variables.join(', ') || '无'}</b></span></div>
-        <textarea className="code-editor" value={content} onChange={(event) => setContent(event.target.value)} />
-        <div className="test-rig"><label>测试输入<input value={input} onChange={(event) => setInput(event.target.value)} /></label><button className="primary" onClick={() => void test()}><FlaskConical size={15} />运行测试</button></div>
-        {result && <pre className="result-console">{result}</pre>}
+      <div className="panel editor-panel"><div className="editor-toolbar"><div><span className="eyebrow">正在编辑</span><h2>{selected?.name}@{selected?.version}</h2></div><div className="page-actions"><button onClick={() => void archive()}>归档</button><button onClick={() => void saveVersion('draft')}><Save size={15} />另存草稿</button><button className="primary" onClick={() => void (selected?.status === 'active' ? saveVersion('active') : activate())}><Rocket size={15} />发布 Active</button></div></div>
+        <div className="editor-meta"><span>状态 <b><StatusBadge status={selected?.status ?? 'draft'} /></b></span><span>Agent <b>{agents.find((agent) => agent.id === (form.agentId || selected?.agentId))?.name ?? '未绑定'}</b></span><span>变量 <b>{selected?.variables?.join(', ') || '无'}</b></span></div>
+        <div className="mini-form">
+          <label>Prompt 名称<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+          <label>绑定 Agent<select value={form.agentId} onChange={(event) => setForm({ ...form, agentId: event.target.value })}><option value="">不绑定</option>{agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select></label>
+          <label>System Prompt<textarea rows={7} value={form.systemPrompt} onChange={(event) => setForm({ ...form, systemPrompt: event.target.value })} /></label>
+          <label>Developer Prompt<textarea rows={4} value={form.developerPrompt} onChange={(event) => setForm({ ...form, developerPrompt: event.target.value })} /></label>
+          <label>User Template<textarea rows={3} value={form.userTemplate} onChange={(event) => setForm({ ...form, userTemplate: event.target.value })} /></label>
+          <label>工具策略 JSON<textarea rows={4} value={form.toolPolicy} onChange={(event) => setForm({ ...form, toolPolicy: event.target.value })} /></label>
+          <label>输出规范 JSON<textarea rows={4} value={form.outputSchema} onChange={(event) => setForm({ ...form, outputSchema: event.target.value })} /></label>
+          <label>成功标准 JSON<textarea rows={4} value={form.successCriteria} onChange={(event) => setForm({ ...form, successCriteria: event.target.value })} /></label>
+          <label>风险点 / 版本说明<textarea rows={3} value={form.riskNotes} onChange={(event) => setForm({ ...form, riskNotes: event.target.value })} /></label>
+        </div>
       </div>
     </div>}
-    {creating && <div className="modal-backdrop" onClick={() => setCreating(false)}><div className="modal" onClick={(event) => event.stopPropagation()}><Sparkles size={22} /><h2>创建 Prompt 基线</h2><p>创建后可以在编辑器中调整内容并保存新版本。</p><div className="modal-actions"><button onClick={() => setCreating(false)}>取消</button><button className="primary" onClick={() => void createPrompt()}>创建</button></div></div></div>}
   </section>;
 }
