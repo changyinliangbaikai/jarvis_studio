@@ -102,6 +102,10 @@ function composePrompt(input: Partial<PromptInput>) {
   ].filter(Boolean).join('\n\n') || '请根据用户输入完成任务：{{input}}';
 }
 
+function hasStructuredPromptInput(input: Partial<PromptInput>) {
+  return input.systemPrompt !== undefined || input.developerPrompt !== undefined || input.userTemplate !== undefined;
+}
+
 export function createPrompt(input: PromptInput) {
   ensurePromptOpsSchema();
   const id = randomUUID();
@@ -151,13 +155,14 @@ export function createPromptVersion(sourceId: string, input: Partial<PromptInput
   const latest = all<{ version: string }>(`SELECT version FROM prompts WHERE name=? ORDER BY created_at DESC`, String(source.name))[0]?.version ?? 'v0.0';
   const match = latest.match(/v(\d+)\.(\d+)/);
   const version = input.version ?? `v${match?.[1] ?? 0}.${Number(match?.[2] ?? 0) + 1}`;
+  const structured = hasStructuredPromptInput(input);
   return createPrompt({
     name: source.name as string,
     agentId: input.agentId ?? source.agentId as string | undefined,
     version,
     status: input.status ?? 'draft',
     promptType: input.promptType ?? source.promptType as string | undefined,
-    content: input.content ?? source.content as string,
+    content: input.content ?? (structured ? undefined : source.content as string),
     systemPrompt: input.systemPrompt ?? source.systemPrompt as string | undefined,
     developerPrompt: input.developerPrompt ?? source.developerPrompt as string | undefined,
     userTemplate: input.userTemplate ?? source.userTemplate as string | undefined,
