@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useState } from 'react';
 import { ThemedSelect } from "../components/ThemedSelect.tsx";
 import { ClipboardList, FolderOpen, Pencil, PlayCircle, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
@@ -62,6 +63,7 @@ interface WorkspaceForm {
 }
 
 export function WorkspacesPage() {
+  const { t } = useTranslation();
   const { items, selected, selectedId, setSelectedId, loading, error: loadError, refresh } = useEntityList<Workspace>('/api/workspaces', '', { schema: workspaceSchema.array() });
   const [form, setForm] = useState<WorkspaceForm>(blankWorkspaceForm());
   const [editing, setEditing] = useState(false);
@@ -116,7 +118,7 @@ export function WorkspacesPage() {
       });
       await refresh(created.id);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '创建评测空间失败');
+      setError(caught instanceof Error ? caught.message : t('pages.workspaces.string_27'));
     }
   };
   const save = async () => {
@@ -131,13 +133,13 @@ export function WorkspacesPage() {
       setEditing(false);
       await refresh(saved.id);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '更新评测空间失败');
+      setError(caught instanceof Error ? caught.message : t('pages.workspaces.string_28'));
     } finally {
       setBusy('');
     }
   };
   const remove = async () => {
-    if (!selected || !window.confirm(`删除评测空间「${selected.name}」？关联测试任务、审批与产物索引也会被清理。`)) return;
+    if (!selected || !window.confirm(t('pages.workspaces.string_29'))) return;
     setBusy('delete');
     setError('');
     try {
@@ -146,7 +148,7 @@ export function WorkspacesPage() {
       files.setData([]);
       await refresh('');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '删除评测空间失败');
+      setError(caught instanceof Error ? caught.message : t('pages.workspaces.string_30'));
     } finally {
       setBusy('');
     }
@@ -156,10 +158,10 @@ export function WorkspacesPage() {
   const providerOptions = options.data?.providers ?? [];
   const policyOptionsData = options.data?.policies ?? [];
   const contextOptionsData = options.data?.contextStrategies ?? [];
-  const selectedModelLabel = selected ? modelProviderLabel(providerOptions, selected.defaultModelProfileId) : '—';
+  const selectedModelLabel = selected ? modelProviderLabel(providerOptions, selected.defaultModelProfileId, t) : '—';
   return <section>
-    <PageHeader eyebrow="V0.5 / Eval Workspace" title="评测空间" description="评测空间用于隔离 Agent Runtime 场景验证的输入、上下文、运行产物和策略配置。Studio 中的任务均为测试任务，用于评估不同模型、Prompt、Skill、Tool 和上下文策略下的 Agent 表现。"
-      actions={<button onClick={() => void refresh()}><RefreshCw size={14} />刷新</button>} />
+    <PageHeader eyebrow="V0.5 / Eval Workspace" title={t('pages.workspaces.string_1')} description={t('pages.workspaces.string_2')}
+      actions={<button onClick={() => void refresh()}><RefreshCw size={14} />{t('pages.workspaces.string_7')}</button>} />
     {(loadError || files.error || options.error || error) && <div className="notice warning">{loadError || files.error || options.error || error}</div>}
     <div className="metric-grid compact">
       <Metric label="EVAL WORKSPACES" value={displayItems.length} tone="cyan" />
@@ -170,34 +172,34 @@ export function WorkspacesPage() {
     </div>
     <ListDetailLayout>
       <EntityListPanel>
-        <div className="panel-title"><FolderOpen size={15} />评测空间列表 <span>{displayItems.length}</span></div>
+        <div className="panel-title"><FolderOpen size={15} />{t('pages.workspaces.string_8')}<span>{displayItems.length}</span></div>
         {displayItems.map((item) => <button key={item.id} className={selectedId === item.id ? 'active' : ''} onClick={() => setSelectedId(item.id)}>
           <StatusBadge status="ready" />
           <div><strong>{item.name}</strong><span>{item.rootPath}</span><p>{item.taskCount} test tasks · {item.artifactCount} run artifacts</p></div>
           <aside><b>{modelProviderShortLabel(providerOptions, item.defaultModelProfileId)}</b><span>{item.defaultContextPolicyId}</span></aside>
         </button>)}
         <div className="mini-form">
-          <label>评测空间名称<input placeholder="例如：Excel Agent 回归空间" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-          <label>Root Path<input placeholder="可留空使用 Demo Eval Workspace" value={form.rootPath} onChange={(event) => setForm({ ...form, rootPath: event.target.value })} /></label>
+          <label>{t('pages.workspaces.string_9')}<input placeholder={t('pages.workspaces.string_3')} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+          <label>Root Path<input placeholder={t('pages.workspaces.string_4')} value={form.rootPath} onChange={(event) => setForm({ ...form, rootPath: event.target.value })} /></label>
           <WorkspaceOptionFields form={form} providers={providerOptions} policies={policyOptionsData} contextStrategies={contextOptionsData} onChange={setForm} />
-          <button className="primary" disabled={!form.name.trim()} onClick={() => void create()}><Plus size={14} />新建评测空间</button>
+          <button className="primary" disabled={!form.name.trim()} onClick={() => void create()}><Plus size={14} />{t('pages.workspaces.string_10')}</button>
         </div>
       </EntityListPanel>
       <EntityDetailPanel>
         {selected ? <>
           <div className="panel-title">Eval Workspace Detail <span>{selected.id}</span></div>
           <div className="provider-actions task-detail-actions">
-            <button onClick={() => setEditing(true)}><Pencil size={14} />编辑</button>
-            <button className="danger" disabled={busy === 'delete'} onClick={() => void remove()}><Trash2 size={14} />删除</button>
+            <button onClick={() => setEditing(true)}><Pencil size={14} />{t('common.edit')}</button>
+            <button className="danger" disabled={busy === 'delete'} onClick={() => void remove()}><Trash2 size={14} />{t('common.delete')}</button>
           </div>
           {editing && <div className="task-editor-panel">
-            <div className="panel-title"><Pencil size={15} />编辑评测空间 <span>PUT /api/workspaces/:id</span></div>
+            <div className="panel-title"><Pencil size={15} />{t('pages.workspaces.string_11')}<span>PUT /api/workspaces/:id</span></div>
             <div className="run-form-grid task-form-grid">
-              <label>评测空间名称<input placeholder="例如：Excel Agent 回归空间" value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} /></label>
-              <label>Root Path<input placeholder="可留空继续使用当前工作空间目录" value={editForm.rootPath} onChange={(event) => setEditForm({ ...editForm, rootPath: event.target.value })} /></label>
+              <label>{t('pages.workspaces.string_12')}<input placeholder={t('pages.workspaces.string_5')} value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} /></label>
+              <label>Root Path<input placeholder={t('pages.workspaces.string_6')} value={editForm.rootPath} onChange={(event) => setEditForm({ ...editForm, rootPath: event.target.value })} /></label>
               <WorkspaceOptionFields form={editForm} providers={providerOptions} policies={policyOptionsData} contextStrategies={contextOptionsData} onChange={setEditForm} wideContext />
             </div>
-            <div className="modal-actions"><button onClick={() => setEditing(false)}><X size={14} />取消</button><button className="primary" disabled={busy === 'save' || !editForm.name.trim()} onClick={() => void save()}><Save size={14} />{busy === 'save' ? '保存中' : '保存修改'}</button></div>
+            <div className="modal-actions"><button onClick={() => setEditing(false)}><X size={14} />{t('common.cancel')}</button><button className="primary" disabled={busy === 'save' || !editForm.name.trim()} onClick={() => void save()}><Save size={14} />{busy === 'save' ? t('pages.workspaces.string_31') : t('pages.workspaces.string_32')}</button></div>
           </div>}
           <div className="registry-facts">
             <span>Root<b>{selected.rootPath}</b></span>
@@ -206,16 +208,16 @@ export function WorkspacesPage() {
             <span>Context<b>{selected.defaultContextPolicyId ?? '—'}</b></span>
           </div>
           <div className="workspace-guide">
-            <div><ClipboardList size={18} /><strong>在此空间下创建测试任务</strong><p>自动带入 workspaceId，任务表单会默认选中当前评测空间。</p><Link className="primary-link" to={`/tasks?workspaceId=${encodeURIComponent(selected.id)}&create=1`}>创建任务</Link></div>
-            <div><PlayCircle size={18} /><strong>实时运行验证</strong><p>进入 Runtime 控制台并带入当前 workspaceId 作为调试上下文。</p><Link className="primary-link secondary-link" to={`/runtime?workspaceId=${encodeURIComponent(selected.id)}`}>实时运行</Link></div>
+            <div><ClipboardList size={18} /><strong>{t('pages.workspaces.string_13')}</strong><p>{t('pages.workspaces.string_14')}</p><Link className="primary-link" to={`/tasks?workspaceId=${encodeURIComponent(selected.id)}&create=1`}>{t('pages.workspaces.string_15')}</Link></div>
+            <div><PlayCircle size={18} /><strong>{t('pages.workspaces.string_16')}</strong><p>{t('pages.workspaces.string_17')}</p><Link className="primary-link secondary-link" to={`/runtime?workspaceId=${encodeURIComponent(selected.id)}`}>{t('pages.workspaces.string_18')}</Link></div>
           </div>
           <div className="workbench-split">
-            <div><h3>文件树</h3>{files.loading ? <Loading /> : <div className="file-tree">{(files.data ?? []).map((file) => <div key={file.path} className={file.type}>
+            <div><h3>{t('pages.workspaces.string_19')}</h3>{files.loading ? <Loading /> : <div className="file-tree">{(files.data ?? []).map((file) => <div key={file.path} className={file.type}>
               <span>{file.type === 'directory' ? 'DIR' : 'FILE'}</span><b>{file.path}</b><em>{file.sizeBytes ?? ''}</em>
             </div>)}</div>}</div>
             <div><h3>Settings</h3><JsonView value={selected.settings} /></div>
           </div>
-        </> : <Empty>尚未创建评测空间。</Empty>}
+        </> : <Empty>{t('pages.workspaces.string_20')}</Empty>}
       </EntityDetailPanel>
     </ListDetailLayout>
   </section>;
@@ -229,23 +231,24 @@ function WorkspaceOptionFields({ form, providers, policies, contextStrategies, w
   wideContext?: boolean;
   onChange: (form: WorkspaceForm) => void;
 }) {
+  const { t } = useTranslation();
   return <>
-    <label>默认模型 Profile<ThemedSelect value={form.defaultModelProfileId} onChange={(event) => onChange({ ...form, defaultModelProfileId: event.target.value })}>
-      <option value="">使用系统默认模型</option>
-      {modelProviderOptions(providers, form.defaultModelProfileId).map((provider) => <option key={provider.id} value={provider.id}>
-        {provider.name} · {provider.defaultModel}{provider.isDefault ? ' · 默认' : ''}{provider.enabled ? '' : ' · 停用'}
+    <label>{t('pages.workspaces.string_21')}<ThemedSelect value={form.defaultModelProfileId} onChange={(event) => onChange({ ...form, defaultModelProfileId: event.target.value })}>
+      <option value="">{t('pages.workspaces.string_22')}</option>
+      {modelProviderOptions(providers, form.defaultModelProfileId, t).map((provider) => <option key={provider.id} value={provider.id}>
+        {provider.name} · {provider.defaultModel}{provider.isDefault ? t('pages.workspaces.string_33') : ''}{provider.enabled ? '' : t('pages.workspaces.string_34')}
       </option>)}
     </ThemedSelect></label>
-    <label>默认权限策略<ThemedSelect value={form.defaultPolicyId} onChange={(event) => onChange({ ...form, defaultPolicyId: event.target.value })}>
-      <option value="">使用系统默认权限策略</option>
-      {policyOptions(policies, form.defaultPolicyId).map((policy) => <option key={policy.id} value={policy.id}>
-        {policy.name} · {policy.id}{policy.version ? ` · ${policy.version}` : ''}{policy.enabled ? '' : ' · 停用'}
+    <label>{t('pages.workspaces.string_23')}<ThemedSelect value={form.defaultPolicyId} onChange={(event) => onChange({ ...form, defaultPolicyId: event.target.value })}>
+      <option value="">{t('pages.workspaces.string_24')}</option>
+      {policyOptions(policies, form.defaultPolicyId, t).map((policy) => <option key={policy.id} value={policy.id}>
+        {policy.name} · {policy.id}{policy.version ? ` · ${policy.version}` : ''}{policy.enabled ? '' : t('pages.workspaces.string_35')}
       </option>)}
     </ThemedSelect></label>
-    <label className={wideContext ? 'wide' : undefined}>默认上下文策略<ThemedSelect value={form.defaultContextPolicyId} onChange={(event) => onChange({ ...form, defaultContextPolicyId: event.target.value })}>
-      <option value="">使用系统默认上下文策略</option>
-      {contextOptions(contextStrategies, form.defaultContextPolicyId).map((strategy) => <option key={strategy.id} value={strategy.id}>
-        {strategy.name} · {strategy.id}{strategy.version ? ` · ${strategy.version}` : ''}{strategy.enabled ? '' : ' · 停用'}
+    <label className={wideContext ? 'wide' : undefined}>{t('pages.workspaces.string_25')}<ThemedSelect value={form.defaultContextPolicyId} onChange={(event) => onChange({ ...form, defaultContextPolicyId: event.target.value })}>
+      <option value="">{t('pages.workspaces.string_26')}</option>
+      {contextOptions(contextStrategies, form.defaultContextPolicyId, t).map((strategy) => <option key={strategy.id} value={strategy.id}>
+        {strategy.name} · {strategy.id}{strategy.version ? ` · ${strategy.version}` : ''}{strategy.enabled ? '' : t('pages.workspaces.string_36')}
       </option>)}
     </ThemedSelect></label>
   </>;
@@ -287,16 +290,16 @@ function preferredContextStrategyId(strategies: ContextStrategy[]) {
   return strategies.find((item) => item.enabled)?.id ?? strategies[0]?.id ?? '';
 }
 
-function modelProviderOptions(providers: ModelProvider[], currentId: string) {
+function modelProviderOptions(providers: ModelProvider[], currentId: string, t: (key: string) => string) {
   if (!currentId || providers.some((item) => item.id === currentId)) return providers;
-  return [{ id: currentId, name: `当前配置 ${currentId}`, defaultModel: currentId, enabled: true, isDefault: false, source: 'workspace' }, ...providers];
+  return [{ id: currentId, name: t('pages.workspaces.string_37'), defaultModel: currentId, enabled: true, isDefault: false, source: 'workspace' }, ...providers];
 }
 
-function modelProviderLabel(providers: ModelProvider[], id?: string) {
-  if (!id) return '系统默认模型';
+function modelProviderLabel(providers: ModelProvider[], id: string | undefined, t: (key: string) => string) {
+  if (!id) return t('pages.workspaces.string_38');
   const provider = providers.find((item) => item.id === id);
-  if (!provider) return `未知模型配置 (${id})`;
-  return `${provider.name} · ${provider.defaultModel}${provider.enabled ? '' : ' · 停用'}`;
+  if (!provider) return t('pages.workspaces.string_39');
+  return `${provider.name} · ${provider.defaultModel}${provider.enabled ? '' : t('pages.workspaces.string_40')}`;
 }
 
 function modelProviderShortLabel(providers: ModelProvider[], id?: string) {
@@ -305,12 +308,12 @@ function modelProviderShortLabel(providers: ModelProvider[], id?: string) {
   return provider?.name ?? id;
 }
 
-function policyOptions(policies: PermissionPolicy[], currentId: string) {
+function policyOptions(policies: PermissionPolicy[], currentId: string, t: (key: string) => string) {
   if (!currentId || policies.some((item) => item.id === currentId)) return policies;
-  return [{ id: currentId, name: `当前策略 ${currentId}`, enabled: true }, ...policies];
+  return [{ id: currentId, name: t('pages.workspaces.string_41'), enabled: true, version: undefined } as any, ...policies];
 }
 
-function contextOptions(strategies: ContextStrategy[], currentId: string) {
+function contextOptions(strategies: ContextStrategy[], currentId: string, t: (key: string) => string) {
   if (!currentId || strategies.some((item) => item.id === currentId)) return strategies;
-  return [{ id: currentId, name: `当前策略 ${currentId}`, enabled: true }, ...strategies];
+  return [{ id: currentId, name: t('pages.workspaces.string_42'), enabled: true, version: undefined } as any, ...strategies];
 }

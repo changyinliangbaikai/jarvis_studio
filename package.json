@@ -1,6 +1,6 @@
 {
   "name": "jarvis-studio",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -22,6 +22,7 @@
     "verify:v0.3": "npm run verify:v0.4",
     "verify:v0.4": "npm run typecheck && npm test && npm run build",
     "verify:v0.5": "npm run typecheck && npm test && npm run build",
+    "verify:v0.6": "npm run typecheck && npm test && npm run build",
     "jarvis": "node --experimental-transform-types apps/jarvis-cli/src/cli.ts",
     "jarvis:bin": "node apps/jarvis-cli/bin/jarvis.mjs",
     "verify:v0.1": "npm run typecheck && node --experimental-transform-types apps/jarvis-cli/src/cli.ts skill list && node --experimental-transform-types apps/jarvis-cli/src/cli.ts tool list && node --experimental-transform-types apps/jarvis-cli/src/cli.ts config list",

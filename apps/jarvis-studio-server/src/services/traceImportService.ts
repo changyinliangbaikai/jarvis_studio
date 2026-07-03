@@ -70,14 +70,37 @@ function mapRun(event: TraceEvent) {
   if (event.eventType === 'run.end' && event.runId) {
     const stats = object(p.stats);
     const tokenUsage = object(p.tokenUsage);
+    const metadata = mergeRunMetadata(event.runId, p);
     run(`UPDATE runs SET status=?, ended_at=?, latency_ms=?, prompt_tokens=?, completion_tokens=?,
       total_tokens=?, score=COALESCE(?, score), error=?, metadata_json=? WHERE id=?`,
       text(p.status, 'success'), event.timestamp, firstNum(p.latencyMs, stats.totalDurationMs),
       firstNum(p.promptTokens, tokenUsage.promptTokens), firstNum(p.completionTokens, tokenUsage.completionTokens),
-      firstNum(p.totalTokens, tokenUsage.totalTokens), num(p.score), text(p.error) || null, json(p), event.runId);
+      firstNum(p.totalTokens, tokenUsage.totalTokens), num(p.score), text(p.error) || null, json(metadata), event.runId);
     if (event.sessionId) {
       run(`UPDATE sessions SET status=?, ended_at=? WHERE id=?`, text(p.status, 'success'), event.timestamp, event.sessionId);
     }
+  }
+}
+
+function mergeRunMetadata(runId: string, payload: Record<string, unknown>): Record<string, unknown> {
+  const row = get<{ metadata_json?: string }>(`SELECT metadata_json FROM runs WHERE id = ?`, runId);
+  const previous = row?.metadata_json ? parseMetadata(row.metadata_json) : {};
+  const previousNested = object(previous.metadata);
+  const payloadNested = object(payload.metadata);
+  return {
+    ...previous,
+    ...payload,
+    ...(Object.keys(previousNested).length > 0 || Object.keys(payloadNested).length > 0
+      ? { metadata: { ...previousNested, ...payloadNested } }
+      : {}),
+  };
+}
+
+function parseMetadata(raw: string): Record<string, unknown> {
+  try {
+    return object(JSON.parse(raw));
+  } catch (_) {
+    return {};
   }
 }
 

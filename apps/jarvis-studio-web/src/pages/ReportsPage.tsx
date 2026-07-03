@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ThemedSelect } from "../components/ThemedSelect.tsx";
 import { Eye, FileDown, FileText, RefreshCcw } from 'lucide-react';
@@ -11,6 +12,7 @@ interface Report { id: string; evalRunId: string; evalRunName: string; datasetId
 interface ReportPreview { evalRunId: string; filename: string; markdown: string; generatedAt: string }
 
 export function ReportsPage() {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState('');
   const [activeReportId, setActiveReportId] = useState('');
   const load = useCallback(async (signal: AbortSignal) => {
@@ -42,19 +44,19 @@ export function ReportsPage() {
     await download(`/api/reports/eval/${evalRunId}/download`, filename ?? `${evalRunId}.md`);
   };
   const activeReport = reports.find((item) => item.evalRunId === activeReportId);
-  return <section><PageHeader eyebrow="10 / 评测报告 (Eval Reports)" title="证据档案室 (Evidence Archive)" description="生成、预览、下载并沉淀可供开发者 Review 的 Markdown 评测报告。"
-    actions={<div className="report-generate"><ThemedSelect value={selected} onChange={(event) => setSelected(event.target.value)}><option value="">选择评测运行</option>{runs.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</ThemedSelect><button className="primary" disabled={!selected} onClick={() => void generate(selected)}><FileText size={14} />生成报告</button></div>} />
+  return <section><PageHeader eyebrow={t('pages.reports.string_1')} title={t('pages.reports.string_2')} description={t('pages.reports.string_3')}
+    actions={<div className="report-generate"><ThemedSelect value={selected} onChange={(event) => setSelected(event.target.value)}><option value="">{t('pages.reports.string_5')}</option>{runs.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</ThemedSelect><button className="primary" disabled={!selected} onClick={() => void generate(selected)}><FileText size={14} />{t('pages.reports.string_6')}</button></div>} />
     {(resource.error || previewResource.error) && <div className="notice warning">{resource.error || previewResource.error}</div>}
     {reports.length ? <div className="report-workspace">
       <div className="report-list">{reports.map((item) => <article className={`panel report-card ${item.evalRunId === activeReportId ? 'active' : ''}`} key={item.id}>
-        <button className="report-select" onClick={() => setActiveReportId(item.evalRunId)}><Eye size={14} />预览</button>
-        <FileText size={25} /><div><span>{item.datasetId}</span><h2>{item.evalRunName}</h2><code>{item.filename}</code><p>{formatDate(item.generatedAt)}</p></div><aside><button title="重新生成报告" onClick={() => void generate(item.evalRunId)}><RefreshCcw size={13} /></button><button className="primary-link" onClick={() => void downloadReport(item.evalRunId, item.filename)}><FileDown size={13} />下载 Markdown</button></aside>
+        <button className="report-select" onClick={() => setActiveReportId(item.evalRunId)}><Eye size={14} />{t('pages.reports.string_7')}</button>
+        <FileText size={25} /><div><span>{item.datasetId}</span><h2>{item.evalRunName}</h2><code>{item.filename}</code><p>{formatDate(item.generatedAt)}</p></div><aside><button title={t('pages.reports.string_4')} onClick={() => void generate(item.evalRunId)}><RefreshCcw size={13} /></button><button className="primary-link" onClick={() => void downloadReport(item.evalRunId, item.filename)}><FileDown size={13} />{t('pages.reports.string_8')}</button></aside>
       </article>)}</div>
       <article className="panel report-preview-panel">
-        <div className="panel-title"><FileText size={15} />报告预览 <span>{activeReport?.filename ?? '未选择'}</span></div>
-        {previewResource.loading ? <Loading /> : preview ? <><div className="report-preview-head"><span>{activeReport?.datasetId}</span><strong>{activeReport?.evalRunName}</strong><button className="primary-link" onClick={() => void downloadReport(preview.evalRunId, activeReport?.filename)}><FileDown size={13} />下载</button></div><MarkdownPreview markdown={preview.markdown} /></> : <Empty>请选择左侧报告进行预览。</Empty>}
+        <div className="panel-title"><FileText size={15} />{t('pages.reports.string_9')}<span>{activeReport?.filename ?? t('pages.reports.string_13')}</span></div>
+        {previewResource.loading ? <Loading /> : preview ? <><div className="report-preview-head"><span>{activeReport?.datasetId}</span><strong>{activeReport?.evalRunName}</strong><button className="primary-link" onClick={() => void downloadReport(preview.evalRunId, activeReport?.filename)}><FileDown size={13} />{t('pages.reports.string_10')}</button></div><MarkdownPreview markdown={preview.markdown} /></> : <Empty>{t('pages.reports.string_11')}</Empty>}
       </article>
-    </div> : <Empty>尚未生成 Eval Report。</Empty>}
+    </div> : <Empty>{t('pages.reports.string_12')}</Empty>}
   </section>;
 }
 

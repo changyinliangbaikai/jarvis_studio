@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useState } from 'react';
 import { ThemedSelect } from "../components/ThemedSelect.tsx";
 import { ArrowLeft, Play } from 'lucide-react';
@@ -8,6 +9,7 @@ import { useAsyncResource } from '../hooks/useAsyncResource.ts';
 import type { EvalCase, EvalRun, ModelProviderOption } from '../evalTypes.ts';
 
 export function EvalCaseDetailPage() {
+  const { t } = useTranslation();
   const { caseId = '' } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,19 +37,19 @@ export function EvalCaseDetailPage() {
       });
       navigate(`/evals/runs/${result.runs[0]!.id}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '运行失败');
+      setError(caught instanceof Error ? caught.message : t('pages.evalCaseDetail.string_12'));
     }
   };
   return <section>
-    <Link className="back-link" to={backTo}><ArrowLeft size={13} />返回当前用例列表</Link>
-    <PageHeader eyebrow="评测用例 / 固定契约 (Eval Case)" title={item.name} description={`${item.id} · ${item.datasetId} · ${item.version}`}
-      actions={<div className="single-run-controls"><ThemedSelect value={providerId} onChange={(event) => setProviderId(event.target.value)}>{providers.map((provider) => <option value={provider.id} key={provider.id}>{provider.name} · {provider.defaultModel}</option>)}</ThemedSelect><label><input type="checkbox" checked={judge} onChange={(event) => setJudge(event.target.checked)} />启用 Judge</label><button className="primary" disabled={!providerId} onClick={() => void execute()}><Play size={14} />单独运行</button></div>} />
+    <Link className="back-link" to={backTo}><ArrowLeft size={13} />{t('pages.evalCaseDetail.string_2')}</Link>
+    <PageHeader eyebrow={t('pages.evalCaseDetail.string_1')} title={item.name} description={`${item.id} · ${item.datasetId} · ${item.version}`}
+      actions={<div className="single-run-controls"><ThemedSelect value={providerId} onChange={(event) => setProviderId(event.target.value)}>{providers.map((provider) => <option value={provider.id} key={provider.id}>{provider.name} · {provider.defaultModel}</option>)}</ThemedSelect><label><input type="checkbox" checked={judge} onChange={(event) => setJudge(event.target.checked)} />{t('pages.evalCaseDetail.string_3')}</label><button className="primary" disabled={!providerId} onClick={() => void execute()}><Play size={14} />{t('pages.evalCaseDetail.string_4')}</button></div>} />
     {(resource.error || error) && <div className="notice warning">{resource.error || error}</div>}
     <div className="eval-case-contract">
-      <article className="panel"><div className="panel-title">用例身份 (Case Identity) <StatusBadge status={item.priority} /></div><dl><dt>分类</dt><dd>{item.category}</dd><dt>标签</dt><dd>{item.tags.join(' / ')}</dd><dt>用户任务</dt><dd>{item.input.message}</dd><dt>文件</dt><dd>{item.input.files.map((file) => file.path).join(', ') || '无'}</dd></dl></article>
-      <article className="panel"><div className="panel-title">期望行为 (Expected Behavior)</div><JsonView value={item.expected} /></article>
-      <article className="panel"><div className="panel-title">评分配置 (Scoring Profile)</div><JsonView value={item.scoring} /></article>
-      <article className="panel"><div className="panel-title">通过标准 (Pass Criteria)</div><JsonView value={item.passCriteria} /></article>
+      <article className="panel"><div className="panel-title">{t('pages.evalCaseDetail.string_5')}<StatusBadge status={item.priority} /></div><dl><dt>{t('pages.evalCaseDetail.string_6')}</dt><dd>{item.category}</dd><dt>{t('common.tags')}</dt><dd>{item.tags.join(' / ')}</dd><dt>{t('pages.evalCaseDetail.string_7')}</dt><dd>{item.input.message}</dd><dt>{t('pages.evalCaseDetail.string_8')}</dt><dd>{item.input.files.map((file) => file.path).join(', ') || t('pages.evalCaseDetail.string_13')}</dd></dl></article>
+      <article className="panel"><div className="panel-title">{t('pages.evalCaseDetail.string_9')}</div><JsonView value={item.expected} /></article>
+      <article className="panel"><div className="panel-title">{t('pages.evalCaseDetail.string_10')}</div><JsonView value={item.scoring} /></article>
+      <article className="panel"><div className="panel-title">{t('pages.evalCaseDetail.string_11')}</div><JsonView value={item.passCriteria} /></article>
     </div>
   </section>;
 }

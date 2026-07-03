@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Braces, Save, SlidersHorizontal } from 'lucide-react';
 import { api, parseJsonWithSchema } from '../api.ts';
@@ -16,6 +17,7 @@ interface ContextStrategy {
 }
 
 export function ContextStrategiesPage() {
+  const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState('');
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
@@ -31,17 +33,17 @@ export function ContextStrategiesPage() {
     if (!selected) return;
     setError('');
     try {
-      const config = parseJsonWithSchema(draft, looseObjectSchema, '策略 JSON 必须是对象');
+      const config = parseJsonWithSchema(draft, looseObjectSchema, t('pages.contextStrategies.string_7'));
       await api('/api/context/strategies', { method: 'POST', body: JSON.stringify({ id: selected.id, name: selected.name, version: selected.version, enabled: selected.enabled, config }) });
       await resource.reload();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '保存策略失败');
+      setError(caught instanceof Error ? caught.message : t('pages.contextStrategies.string_8'));
     }
   };
   if (!items) return <Loading />;
   return <section>
-    <PageHeader eyebrow="V0.4 / Context Budget" title="上下文预算策略 (Context Strategies)" description="管理 Context Budget Manager 的分段优先级、token 上限、压缩、摘要、截断和丢弃策略。"
-      actions={<button className="primary" disabled={!selected} onClick={() => void save()}><Save size={15} />保存策略</button>} />
+    <PageHeader eyebrow="V0.4 / Context Budget" title={t('pages.contextStrategies.string_1')} description={t('pages.contextStrategies.string_2')}
+      actions={<button className="primary" disabled={!selected} onClick={() => void save()}><Save size={15} />{t('pages.contextStrategies.string_3')}</button>} />
     {(resource.error || error) && <div className="notice warning">{resource.error || error}</div>}
     <div className="metric-grid compact">
       <Metric label="CONTEXT SNAPSHOTS" value={items.length} tone="cyan" />
@@ -52,16 +54,16 @@ export function ContextStrategiesPage() {
     </div>
     <div className="strategy-layout">
       <div className="panel registry-list">
-        <div className="panel-title"><SlidersHorizontal size={15} />策略列表 <span>{items.length}</span></div>
+        <div className="panel-title"><SlidersHorizontal size={15} />{t('pages.contextStrategies.string_4')}<span>{items.length}</span></div>
         {items.map((item) => <button key={item.id} className={selected?.id === item.id ? 'active' : ''} onClick={() => setSelectedId(item.id)}>
           <StatusBadge status={item.enabled ? 'enabled' : 'disabled'} />
           <div><strong>{item.name}</strong><span>{item.id} · {item.version}</span><p>{Object.keys(item.config.segments ?? {}).join(', ')}</p></div>
         </button>)}
       </div>
       {selected && <div className="panel strategy-editor">
-        <div className="panel-title"><Braces size={15} />策略 JSON <span>{selected.id}</span></div>
+        <div className="panel-title"><Braces size={15} />{t('pages.contextStrategies.string_5')}<span>{selected.id}</span></div>
         <textarea className="code-editor" rows={22} value={draft} onChange={(event) => setDraft(event.target.value)} />
-        <h3>当前结构预览</h3>
+        <h3>{t('pages.contextStrategies.string_6')}</h3>
         <JsonView value={selected.config} />
       </div>}
     </div>

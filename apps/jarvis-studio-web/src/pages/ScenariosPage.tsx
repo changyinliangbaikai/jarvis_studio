@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ThemedSelect } from "../components/ThemedSelect.tsx";
 import { FilePlus2, Layers, Pencil, PlayCircle, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
@@ -48,48 +49,53 @@ interface RulePreset {
   multiline?: boolean;
 }
 
-const preflightPresets: RulePreset[] = [
-  { id: 'input_file_exists', label: '文件存在检查', description: '确认任务输入文件在评测空间内真实存在。' },
-  { id: 'input_file_is_xlsx_or_csv', label: 'Excel/CSV 类型检查', description: '限制输入文件必须是 xlsx、xls 或 csv。' },
-  { id: 'input_file_is_txt_or_docx', label: '文本/文档类型检查', description: '限制输入文件必须是 txt、md、markdown 或 docx。' },
-  { id: 'file_size_under_limit', label: '文件大小限制', description: '确认输入文件不超过 25MB。' },
-  { id: 'workspace_is_git_repo', label: 'Git 工作区检查', description: '确认 Workspace 位于 Git 工作区内。' },
-  { id: 'required_skill_available', label: 'Skill 可用性', description: '确认默认 Skill 已注册且未禁用。' },
-  { id: 'required_tools_available', label: 'Tool 注册检查', description: '确认场景必需工具都已在 Runtime 注册。' },
-  { id: 'model_profile_available', label: '模型服务商检查', description: '确认默认模型 Profile 可解析。' }
+const getPreflightPresets = (t: (key: string) => string): RulePreset[] => [
+  { id: 'input_file_exists', label: t('pages.scenarios.string_31'), description: t('pages.scenarios.string_32') },
+  { id: 'input_file_is_xlsx_or_csv', label: t('pages.scenarios.string_33'), description: t('pages.scenarios.string_34') },
+  { id: 'input_file_is_txt_or_docx', label: t('pages.scenarios.string_35'), description: t('pages.scenarios.string_36') },
+  { id: 'file_size_under_limit', label: t('pages.scenarios.string_37'), description: t('pages.scenarios.string_38') },
+  { id: 'workspace_is_git_repo', label: t('pages.scenarios.string_39'), description: t('pages.scenarios.string_40') },
+  { id: 'required_skill_available', label: t('pages.scenarios.string_41'), description: t('pages.scenarios.string_42') },
+  { id: 'required_tools_available', label: t('pages.scenarios.string_43'), description: t('pages.scenarios.string_44') },
+  { id: 'model_profile_available', label: t('pages.scenarios.string_45'), description: t('pages.scenarios.string_46') }
 ];
 
-const postflightPresets: RulePreset[] = [
-  { id: 'artifact_exists', label: '最终产物校验', description: '确认运行后生成指定 Artifact。', valueLabel: 'Artifact 名称或后缀', placeholder: 'analysis_report.md' },
-  { id: 'must_include_sections', label: '报告章节校验', description: '确认首个文本 Artifact 包含必需章节。', valueLabel: '必需章节', placeholder: '数据概况\n异常发现\n营销建议', multiline: true },
-  { id: 'no_empty_sections', label: '非空内容校验', description: '确认文本产物不是空报告。' },
-  { id: 'length_in_range', label: '报告长度范围', description: '确认报告长度在可审阅范围内。' },
-  { id: 'no_source_file_changed_without_approval', label: '高风险修改审批', description: '确认源代码修改类工具调用已经审批。' }
+const getPostflightPresets = (t: (key: string) => string): RulePreset[] => [
+  { id: 'artifact_exists', label: t('pages.scenarios.string_47'), description: t('pages.scenarios.string_48'), valueLabel: t('pages.scenarios.string_49'), placeholder: 'analysis_report.md' },
+  { id: 'must_include_sections', label: t('pages.scenarios.string_50'), description: t('pages.scenarios.string_51'), valueLabel: t('pages.scenarios.string_52'), placeholder: t('pages.scenarios.string_53'), multiline: true },
+  { id: 'no_empty_sections', label: t('pages.scenarios.string_54'), description: t('pages.scenarios.string_55') },
+  { id: 'length_in_range', label: t('pages.scenarios.string_56'), description: t('pages.scenarios.string_57') },
+  { id: 'no_source_file_changed_without_approval', label: t('pages.scenarios.string_58'), description: t('pages.scenarios.string_59') }
 ];
 
 const defaultExcelInputFile = 'input/customer_data.xlsx';
 const defaultDocumentInputFile = 'input/weekly_raw.txt';
 
-const blankScenarioForm: ScenarioForm = {
-  name: '客户清单异常分析',
+const getBlankScenarioForm = (t: (key: string) => string, preflightPresets: RulePreset[], postflightPresets: RulePreset[]): ScenarioForm => ({
+  name: t('pages.scenarios.string_60'),
   category: 'data-analysis',
-  description: '验证 Agent 是否能读取 Excel、识别异常并生成营销建议。',
+  description: t('pages.scenarios.string_61'),
   defaultSkillId: 'excel-data-analysis',
   requiredTools: 'xlsx.inspect\npython.run\nfilesystem.write',
   defaultOutputs: 'analysis_report.md',
   preflight: preflightPresets.map((preset) => ({ id: preset.id, enabled: ['input_file_exists', 'input_file_is_xlsx_or_csv', 'required_skill_available', 'required_tools_available', 'model_profile_available'].includes(preset.id), value: '' })),
-  postflight: postflightPresets.map((preset) => ({ id: preset.id, enabled: ['artifact_exists', 'must_include_sections', 'no_empty_sections', 'length_in_range'].includes(preset.id), value: preset.id === 'artifact_exists' ? 'analysis_report.md' : preset.id === 'must_include_sections' ? '数据概况\n异常发现\n营销建议' : '' })),
+  postflight: postflightPresets.map((preset) => ({ id: preset.id, enabled: ['artifact_exists', 'must_include_sections', 'no_empty_sections', 'length_in_range'].includes(preset.id), value: preset.id === 'artifact_exists' ? 'analysis_report.md' : preset.id === 'must_include_sections' ? t('pages.scenarios.string_62') : '' })),
   customPreflight: [],
   customPostflight: []
-};
+});
 
 export function ScenariosPage() {
+  const { t } = useTranslation();
+  const preflightPresets = useMemo(() => getPreflightPresets(t), [t]);
+  const postflightPresets = useMemo(() => getPostflightPresets(t), [t]);
+  const blankScenarioForm = useMemo(() => getBlankScenarioForm(t, preflightPresets, postflightPresets), [t, preflightPresets, postflightPresets]);
+
   const [selectedId, setSelectedId] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
   const [inputFiles, setInputFiles] = useState(defaultExcelInputFile);
   const [preflight, setPreflight] = useState<unknown>();
   const [editingMode, setEditingMode] = useState<'new' | 'edit' | ''>('');
-  const [form, setForm] = useState<ScenarioForm>(blankScenarioForm);
+  const [form, setForm] = useState<ScenarioForm>(() => getBlankScenarioForm(t, getPreflightPresets(t), getPostflightPresets(t)));
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState('');
   const load = useCallback(async (signal: AbortSignal) => {
@@ -124,7 +130,7 @@ export function ScenariosPage() {
       });
       setPreflight(result);
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : 'Scenario Preflight 失败');
+      setNotice(caught instanceof Error ? caught.message : t('pages.scenarios.string_63'));
     }
   };
   const startCreate = () => {
@@ -137,7 +143,7 @@ export function ScenariosPage() {
     if (!selected) return;
     setNotice('');
     setPreflight(undefined);
-    setForm(formFromScenario(selected));
+    setForm(formFromScenario(selected, preflightPresets, postflightPresets));
     setEditingMode('edit');
   };
   const save = async () => {
@@ -150,16 +156,16 @@ export function ScenariosPage() {
         : await api<Scenario>(`/api/scenarios/${selected?.id}`, { method: 'PUT', body: JSON.stringify(payload) });
       setEditingMode('');
       setSelectedId(saved.id);
-      setNotice(`评测场景「${saved.name}」已保存。`);
+      setNotice(t('pages.scenarios.string_64'));
       await resource.reload();
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : '保存评测场景失败');
+      setNotice(caught instanceof Error ? caught.message : t('pages.scenarios.string_65'));
     } finally {
       setBusy('');
     }
   };
   const remove = async () => {
-    if (!selected || !window.confirm(`删除评测场景「${selected.name}」？已关联任务会解除场景绑定。`)) return;
+    if (!selected || !window.confirm(t('pages.scenarios.string_66'))) return;
     setBusy('delete');
     setNotice('');
     try {
@@ -168,18 +174,18 @@ export function ScenariosPage() {
       setSelectedId('');
       setPreflight(undefined);
       setEditingMode('');
-      setNotice(`评测场景「${selected.name}」已删除。`);
+      setNotice(t('pages.scenarios.string_67'));
       await resource.reload();
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : '删除评测场景失败');
+      setNotice(caught instanceof Error ? caught.message : t('pages.scenarios.string_68'));
     } finally {
       setBusy('');
     }
   };
 
   return <section>
-    <PageHeader eyebrow="V0.5 / Eval Scenario Template" title="评测场景模板" description="维护可复用的 Agent Runtime 场景验证模板：默认 Skill、必需工具、前置检查和完成后验收规则，用于生成标准化测试任务。"
-      actions={<><button onClick={() => void resource.reload()}><RefreshCw size={14} />刷新</button><button className="primary" onClick={startCreate}><Plus size={14} />新建场景</button></>} />
+    <PageHeader eyebrow="V0.5 / Eval Scenario Template" title={t('pages.scenarios.string_1')} description={t('pages.scenarios.string_2')}
+      actions={<><button onClick={() => void resource.reload()}><RefreshCw size={14} />{t('pages.scenarios.string_13')}</button><button className="primary" onClick={startCreate}><Plus size={14} />{t('pages.scenarios.string_14')}</button></>} />
     {(resource.error || notice) && <div className="notice warning">{resource.error || notice}</div>}
     <div className="metric-grid compact">
       <Metric label="SCENARIOS" value={displayItems.length} tone="cyan" />
@@ -190,19 +196,19 @@ export function ScenariosPage() {
     </div>
     <div className="workbench-grid">
       <div className="panel registry-list">
-        <div className="panel-title"><Layers size={15} />评测场景列表 <span>{displayItems.length}</span></div>
+        <div className="panel-title"><Layers size={15} />{t('pages.scenarios.string_15')}<span>{displayItems.length}</span></div>
         {resource.loading && !items ? <Loading /> : displayItems.length ? displayItems.map((item) => <button key={item.id} className={selected?.id === item.id ? 'active' : ''} onClick={() => { setSelectedId(item.id); setPreflight(undefined); setEditingMode(''); }}>
           <StatusBadge status="enabled" />
           <div><strong>{item.name}</strong><span>{item.category} · {item.defaultSkillId}</span><p>{item.description}</p></div>
           <aside><b>{item.requiredTools.length} tools</b><span>{item.defaultOutputs.join(', ')}</span></aside>
-        </button>) : <Empty>尚未配置评测场景模板。</Empty>}
-        <div className="mini-form task-create-entry"><button className="primary" onClick={startCreate}><FilePlus2 size={14} />打开新建场景表单</button></div>
+        </button>) : <Empty>{t('pages.scenarios.string_16')}</Empty>}
+        <div className="mini-form task-create-entry"><button className="primary" onClick={startCreate}><FilePlus2 size={14} />{t('pages.scenarios.string_17')}</button></div>
       </div>
       <div className="panel workbench-detail">
         {editingMode ? <ScenarioEditor mode={editingMode} form={form} busy={busy === 'save'} onChange={setForm} onCancel={() => setEditingMode('')} onSave={() => void save()} />
           : selected ? <ScenarioDetail scenario={selected} preflight={preflight} workspaceId={workspaceId} workspaces={workspaces} inputFiles={inputFiles} busy={busy}
             onWorkspace={setWorkspaceId} onInputFiles={setInputFiles} onPreflight={() => void runPreflight()} onEdit={startEdit} onDelete={() => void remove()} />
-            : <Empty>尚未创建评测场景模板。</Empty>}
+            : <Empty>{t('pages.scenarios.string_18')}</Empty>}
       </div>
     </div>
   </section>;
@@ -221,12 +227,15 @@ function ScenarioDetail({ scenario, preflight, workspaceId, workspaces, inputFil
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
+  const preflightPresets = useMemo(() => getPreflightPresets(t), [t]);
+  const postflightPresets = useMemo(() => getPostflightPresets(t), [t]);
   return <>
     <div className="panel-title">Eval Scenario Contract <span>{scenario.id}</span></div>
     <div className="provider-actions task-detail-actions">
-      <Link className="primary-link" to={`/tasks?scenarioTemplateId=${encodeURIComponent(scenario.id)}&create=1`}>基于模板新建任务</Link>
-      <button onClick={onEdit}><Pencil size={14} />编辑</button>
-      <button className="danger" disabled={busy === 'delete'} onClick={onDelete}><Trash2 size={14} />删除</button>
+      <Link className="primary-link" to={`/tasks?scenarioTemplateId=${encodeURIComponent(scenario.id)}&create=1`}>{t('pages.scenarios.string_19')}</Link>
+      <button onClick={onEdit}><Pencil size={14} />{t('common.edit')}</button>
+      <button className="danger" disabled={busy === 'delete'} onClick={onDelete}><Trash2 size={14} />{t('common.delete')}</button>
     </div>
     <div className="registry-facts">
       <span>Skill<b>{scenario.defaultSkillId ?? '—'}</b></span>
@@ -235,17 +244,17 @@ function ScenarioDetail({ scenario, preflight, workspaceId, workspaces, inputFil
       <span>Outputs<b>{scenario.defaultOutputs.length}</b></span>
     </div>
     <div className="scenario-rule-summary">
-      <RuleSummary title="Preflight 规则" rules={scenario.preflight} presets={preflightPresets} tone="preflight" />
-      <RuleSummary title="Postflight 规则" rules={scenario.postflight} presets={postflightPresets} tone="postflight" />
+      <RuleSummary title={t('pages.scenarios.string_3')} rules={scenario.preflight} presets={preflightPresets} tone="preflight" />
+      <RuleSummary title={t('pages.scenarios.string_4')} rules={scenario.postflight} presets={postflightPresets} tone="postflight" />
     </div>
     <div className="scenario-preflight">
-      <label>验证空间<ThemedSelect value={workspaceId} onChange={(event) => onWorkspace(event.target.value)}>{workspaces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</ThemedSelect></label>
-      <label>输入文件<textarea rows={2} placeholder={defaultInputFilesForScenario(scenario) || '该场景不需要输入文件'} value={inputFiles} onChange={(event) => onInputFiles(event.target.value)} /></label>
-      <button className="primary" onClick={onPreflight}><PlayCircle size={14} />运行 Preflight</button>
+      <label>{t('pages.scenarios.string_20')}<ThemedSelect value={workspaceId} onChange={(event) => onWorkspace(event.target.value)}>{workspaces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</ThemedSelect></label>
+      <label>{t('pages.scenarios.string_21')}<textarea rows={2} placeholder={defaultInputFilesForScenario(scenario) || t('pages.scenarios.string_69')} value={inputFiles} onChange={(event) => onInputFiles(event.target.value)} /></label>
+      <button className="primary" onClick={onPreflight}><PlayCircle size={14} />{t('pages.scenarios.string_22')}</button>
     </div>
     <div className="workbench-split">
       <CheckResultPanel title="Preflight Result" value={preflight} />
-      <div><h3>模板输出约束</h3><div className="chip-row">{scenario.requiredTools.map((tool) => <span key={tool}>{tool}</span>)}{scenario.defaultOutputs.map((output) => <span key={output}>{output}</span>)}</div></div>
+      <div><h3>{t('pages.scenarios.string_23')}</h3><div className="chip-row">{scenario.requiredTools.map((tool) => <span key={tool}>{tool}</span>)}{scenario.defaultOutputs.map((output) => <span key={output}>{output}</span>)}</div></div>
     </div>
   </>;
 }
@@ -258,21 +267,24 @@ function ScenarioEditor({ mode, form, busy, onChange, onCancel, onSave }: {
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation();
+  const preflightPresets = useMemo(() => getPreflightPresets(t), [t]);
+  const postflightPresets = useMemo(() => getPostflightPresets(t), [t]);
   return <div className="scenario-editor">
-    <div className="panel-title"><Pencil size={15} />{mode === 'new' ? '新建评测场景' : '编辑评测场景'} <span>{mode === 'new' ? 'POST /api/scenarios' : 'PUT /api/scenarios/:id'}</span></div>
+    <div className="panel-title"><Pencil size={15} />{mode === 'new' ? t('pages.scenarios.string_70') : t('pages.scenarios.string_71')} <span>{mode === 'new' ? 'POST /api/scenarios' : 'PUT /api/scenarios/:id'}</span></div>
     <div className="run-form-grid task-form-grid">
-      <label>场景名称<input placeholder="例如：客户清单异常分析" value={form.name} onChange={(event) => onChange({ ...form, name: event.target.value })} /></label>
-      <label>分类<input placeholder="例如：data-analysis / coding / office" value={form.category} onChange={(event) => onChange({ ...form, category: event.target.value })} /></label>
-      <label>默认 Skill<input placeholder="例如：excel-data-analysis" value={form.defaultSkillId} onChange={(event) => onChange({ ...form, defaultSkillId: event.target.value })} /></label>
-      <label>默认输出<textarea rows={3} placeholder="每行一个输出文件名，例如：analysis_report.md" value={form.defaultOutputs} onChange={(event) => onChange({ ...form, defaultOutputs: event.target.value })} /></label>
-      <label className="wide">场景说明<input placeholder="说明该模板验证的 Agent 能力与成功标准" value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} /></label>
-      <label className="wide">必需工具<textarea rows={4} placeholder="每行一个工具名，例如：&#10;xlsx.inspect&#10;python.run&#10;filesystem.write" value={form.requiredTools} onChange={(event) => onChange({ ...form, requiredTools: event.target.value })} /></label>
+      <label>{t('pages.scenarios.string_24')}<input placeholder={t('pages.scenarios.string_5')} value={form.name} onChange={(event) => onChange({ ...form, name: event.target.value })} /></label>
+      <label>{t('pages.scenarios.string_25')}<input placeholder={t('pages.scenarios.string_6')} value={form.category} onChange={(event) => onChange({ ...form, category: event.target.value })} /></label>
+      <label>{t('pages.scenarios.string_26')}<input placeholder={t('pages.scenarios.string_7')} value={form.defaultSkillId} onChange={(event) => onChange({ ...form, defaultSkillId: event.target.value })} /></label>
+      <label>{t('pages.scenarios.string_27')}<textarea rows={3} placeholder={t('pages.scenarios.string_8')} value={form.defaultOutputs} onChange={(event) => onChange({ ...form, defaultOutputs: event.target.value })} /></label>
+      <label className="wide">{t('pages.scenarios.string_28')}<input placeholder={t('pages.scenarios.string_9')} value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} /></label>
+      <label className="wide">{t('pages.scenarios.string_29')}<textarea rows={4} placeholder={t('pages.scenarios.string_10')} value={form.requiredTools} onChange={(event) => onChange({ ...form, requiredTools: event.target.value })} /></label>
     </div>
     <div className="scenario-builder-grid">
-      <RuleBuilder title="Preflight 前置检查" presets={preflightPresets} rules={form.preflight} onChange={(preflight) => onChange({ ...form, preflight })} customRules={form.customPreflight} />
-      <RuleBuilder title="Postflight 后置验收" presets={postflightPresets} rules={form.postflight} onChange={(postflight) => onChange({ ...form, postflight })} customRules={form.customPostflight} />
+      <RuleBuilder title={t('pages.scenarios.string_11')} presets={preflightPresets} rules={form.preflight} onChange={(preflight) => onChange({ ...form, preflight })} customRules={form.customPreflight} />
+      <RuleBuilder title={t('pages.scenarios.string_12')} presets={postflightPresets} rules={form.postflight} onChange={(postflight) => onChange({ ...form, postflight })} customRules={form.customPostflight} />
     </div>
-    <div className="modal-actions"><button onClick={onCancel}><X size={14} />取消</button><button className="primary" disabled={busy || !form.name.trim()} onClick={onSave}><Save size={14} />{busy ? '保存中' : '保存场景'}</button></div>
+    <div className="modal-actions"><button onClick={onCancel}><X size={14} />{t('common.cancel')}</button><button className="primary" disabled={busy || !form.name.trim()} onClick={onSave}><Save size={14} />{busy ? t('pages.scenarios.string_72') : t('pages.scenarios.string_73')}</button></div>
   </div>;
 }
 
@@ -301,28 +313,30 @@ function RuleBuilder({ title, presets, rules, customRules, onChange }: {
 }
 
 function RuleSummary({ title, rules, presets, tone }: { title: string; rules: unknown[]; presets: RulePreset[]; tone: 'preflight' | 'postflight' }) {
+  const { t } = useTranslation();
   return <div className={`panel rule-summary rule-summary-${tone}`}>
     <div className="panel-title">{title}<span>{rules.length}</span></div>
     {rules.length ? <div className="rule-summary-list">{rules.map((rule, index) => {
       const id = checkId(rule);
       const preset = presets.find((item) => item.id === id);
       return <div key={`${id}-${index}`}><StatusBadge status="enabled" /><strong>{preset?.label ?? id}</strong><span>{ruleText(rule)}</span></div>;
-    })}</div> : <Empty>尚未配置规则。</Empty>}
+    })}</div> : <Empty>{t('pages.scenarios.string_30')}</Empty>}
   </div>;
 }
 
 function CheckResultPanel({ title, value }: { title: string; value: unknown }) {
+  const { t } = useTranslation();
   const summary = checkResultSummary(value);
   return <div>
     <h3>{title}</h3>
-    <div className="check-result-head"><StatusBadge status={summary.status} /><span>{summary.checkedAt || '尚未执行'}</span></div>
+    <div className="check-result-head"><StatusBadge status={summary.status} /><span>{summary.checkedAt || t('pages.scenarios.string_74')}</span></div>
     {summary.checks.length ? <div className="check-result-grid">{summary.checks.map((check, index) => <article key={`${check.id}-${index}`} className={`check-card check-${check.status}`}>
       <StatusBadge status={check.status} /><strong>{check.id}</strong><p>{check.detail}</p>
     </article>)}</div> : <Empty>{title} 尚未产生检查结果。</Empty>}
   </div>;
 }
 
-function formFromScenario(scenario: Scenario): ScenarioForm {
+function formFromScenario(scenario: Scenario, preflightPresets: RulePreset[], postflightPresets: RulePreset[]): ScenarioForm {
   return {
     name: scenario.name,
     category: scenario.category ?? '',

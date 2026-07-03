@@ -1,6 +1,6 @@
-# Jarvis Studio v0.5
+# Jarvis Studio v0.6
 
-Jarvis Studio is a local Agent engineering workbench with task-oriented workspaces, real Runtime traces, versioned Eval Datasets, batch evaluation, governance registries, permission policy, context budget analysis, failure diagnosis, replay snapshots, experiment matrices, release gates, and reports.
+Jarvis Studio is a prompt-first Agent design, debugging, TraceOps, case management, and lightweight evaluation workbench. The v0.6 product flow is Agent -> Prompt -> Playground -> Run / Trace -> Case -> Eval Suite, with heavier governance, reports, workspaces, release gates, and experiment matrices retained under Settings / Advanced.
 
 ## Requirements
 
@@ -32,8 +32,20 @@ The production server hosts both the API and built Web UI at `http://127.0.0.1:4
 npm run typecheck
 npm test
 npm run build
-npm run verify:v0.5
+npm run verify:v0.6
 ```
+
+## v0.6 PromptOps + TraceOps Flow
+
+- Main navigation is reduced to Agents, Prompts, Playground, Runs, Cases, Evaluations, and Settings.
+- Agent creation can generate a default Prompt draft and stores default model, Runtime, context, tool policy, output mode, and tags.
+- Prompt management supports Draft / Active / Archived versions, System / Developer / User Template editing, structured policy metadata, failure criteria, tags, publishing, cloning, archiving, and version comparison.
+- Playground runs against Agent + Prompt Version, records a historical Prompt snapshot, generates a Run and Trace, shows output and summary, and can convert the run to a Case.
+- Runs and Trace pages expose user input, final output, Prompt snapshot, raw Trace events, Trace tree, and Run-to-Case conversion.
+- Cases are first-class v0.6 objects with Manual, Keyword, JSON Schema, and Tool Call assertion modes plus standalone case execution.
+- Evaluations are lightweight Eval Suites over Cases; each Eval Run generates per-case Run / Trace links and pass-rate summaries.
+
+See [v0.6 acceptance](docs/v0.6-acceptance.md).
 
 ## v0.1 Capabilities
 

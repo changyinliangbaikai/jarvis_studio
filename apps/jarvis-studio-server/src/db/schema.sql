@@ -67,6 +67,25 @@ CREATE TABLE IF NOT EXISTS workspaces (
   created_at TEXT,
   updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  default_prompt_id TEXT,
+  default_prompt_version_id TEXT,
+  default_model_provider_id TEXT,
+  default_model TEXT,
+  default_skill_id TEXT,
+  default_context_strategy_id TEXT,
+  default_tool_policy_id TEXT,
+  default_runtime_id TEXT,
+  output_mode TEXT,
+  tags_json TEXT,
+  settings_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL,
@@ -155,7 +174,82 @@ CREATE TABLE IF NOT EXISTS task_events (
 CREATE TABLE IF NOT EXISTS prompts (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, version TEXT NOT NULL, content TEXT NOT NULL,
   variables_json TEXT, linked_skill TEXT, changelog TEXT, created_at TEXT NOT NULL,
+  agent_id TEXT, status TEXT DEFAULT 'draft', prompt_type TEXT DEFAULT 'mixed',
+  system_prompt TEXT, developer_prompt TEXT, user_template TEXT,
+  output_schema_json TEXT, tool_policy_json TEXT, success_criteria_json TEXT,
+  failure_criteria_json TEXT, variables_schema_json TEXT, risk_notes TEXT,
+  tags_json TEXT, created_from_run_id TEXT, updated_at TEXT, published_at TEXT,
   UNIQUE(name, version)
+);
+CREATE TABLE IF NOT EXISTS cases (
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  source_run_id TEXT,
+  source_trace_id TEXT,
+  prompt_version_id TEXT,
+  name TEXT NOT NULL,
+  description TEXT,
+  input TEXT NOT NULL,
+  context_json TEXT,
+  expected_output TEXT,
+  assertion_type TEXT NOT NULL DEFAULT 'manual',
+  assertion_config_json TEXT,
+  priority TEXT NOT NULL DEFAULT 'P1',
+  status TEXT NOT NULL DEFAULT 'active',
+  tags_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS case_run_results (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL,
+  run_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  passed INTEGER,
+  assertion_type TEXT NOT NULL,
+  assertion_summary_json TEXT,
+  output TEXT,
+  error TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS eval_suites (
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  case_ids_json TEXT NOT NULL,
+  default_assertion_mode TEXT,
+  tags_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS eval_runs_light (
+  id TEXT PRIMARY KEY,
+  suite_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  prompt_version_id TEXT NOT NULL,
+  model_provider_id TEXT,
+  model TEXT,
+  status TEXT NOT NULL,
+  total_cases INTEGER NOT NULL DEFAULT 0,
+  passed_cases INTEGER NOT NULL DEFAULT 0,
+  failed_cases INTEGER NOT NULL DEFAULT 0,
+  pass_rate REAL,
+  started_at TEXT NOT NULL,
+  ended_at TEXT,
+  error TEXT
+);
+CREATE TABLE IF NOT EXISTS eval_run_results_light (
+  id TEXT PRIMARY KEY,
+  eval_run_id TEXT NOT NULL,
+  case_id TEXT NOT NULL,
+  run_id TEXT,
+  status TEXT NOT NULL,
+  passed INTEGER DEFAULT 0,
+  assertion_type TEXT,
+  output TEXT,
+  error TEXT,
+  created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS eval_cases (
   id TEXT PRIMARY KEY, dataset_id TEXT, name TEXT NOT NULL, category TEXT NOT NULL, priority TEXT,

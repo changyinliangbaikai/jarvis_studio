@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useMemo, useState } from 'react';
 import { ThemedSelect } from "../components/ThemedSelect.tsx";
 import { AlertTriangle, CheckCircle2, ChevronLeft, Search, Wrench, XCircle } from 'lucide-react';
@@ -26,6 +27,7 @@ interface Failure {
 }
 
 export function FailuresPage() {
+  const { t } = useTranslation();
   const { failureId } = useParams();
   const [filters, setFilters] = useState({ type: '', severity: '', skillId: '', toolId: '' });
   const load = useCallback((signal: AbortSignal) => api<Failure[]>('/api/failures', { signal }), []);
@@ -49,7 +51,7 @@ export function FailuresPage() {
   };
   const linkFix = async () => {
     if (!detail) return;
-    await post(`/api/failures/${detail.id}/link-fix`, { runId: detail.runId, note: '从 Failure 详情页关联修复记录' });
+    await post(`/api/failures/${detail.id}/link-fix`, { runId: detail.runId, note: t('pages.failures.string_21') });
     await resource.reload();
     await detailResource.reload();
   };
@@ -60,8 +62,8 @@ export function FailuresPage() {
   const skillOptions = unique(items.map((item) => item.skillId).filter(Boolean) as string[]);
   const toolOptions = unique(items.map((item) => item.toolId).filter(Boolean) as string[]);
   return <section>
-    {failureId && <Link className="back-link" to="/failures"><ChevronLeft size={14} />返回 Failure 列表</Link>}
-    <PageHeader eyebrow="V0.4 / Failure Diagnosis" title="失败诊断室 (Failure Diagnosis)" description="把 Eval、Tool、Permission、Context、Runtime 错误归因到可追踪的 Failure Record，并保留证据和建议修复。" />
+    {failureId && <Link className="back-link" to="/failures"><ChevronLeft size={14} />{t('pages.failures.string_3')}</Link>}
+    <PageHeader eyebrow="V0.4 / Failure Diagnosis" title={t('pages.failures.string_1')} description={t('pages.failures.string_2')} />
     {(resource.error || detailResource.error) && <div className="notice warning">{resource.error || detailResource.error}</div>}
     <div className="metric-grid compact">
       <Metric label="OPEN FAILURES" value={open.length} tone="red" />
@@ -71,16 +73,16 @@ export function FailuresPage() {
       <Metric label="RUN" value={new Set(items.map((item) => item.runId)).size} />
     </div>
     <div className="filter-strip panel">
-      <Search size={14} /><span className="flow-label">筛选 Failure</span>
-      <ThemedSelect value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="">全部类型</option>{typeOptions.map((item) => <option value={item} key={item}>{item}</option>)}</ThemedSelect>
-      <ThemedSelect value={filters.severity} onChange={(event) => setFilters({ ...filters, severity: event.target.value })}><option value="">全部严重程度</option>{severityOptions.map((item) => <option value={item} key={item}>{item}</option>)}</ThemedSelect>
-      <ThemedSelect value={filters.skillId} onChange={(event) => setFilters({ ...filters, skillId: event.target.value })}><option value="">全部 Skill</option>{skillOptions.map((item) => <option value={item} key={item}>{item}</option>)}</ThemedSelect>
-      <ThemedSelect value={filters.toolId} onChange={(event) => setFilters({ ...filters, toolId: event.target.value })}><option value="">全部 Tool</option>{toolOptions.map((item) => <option value={item} key={item}>{item}</option>)}</ThemedSelect>
+      <Search size={14} /><span className="flow-label">{t('pages.failures.string_4')}</span>
+      <ThemedSelect value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="">{t('pages.failures.string_5')}</option>{typeOptions.map((item) => <option value={item} key={item}>{item}</option>)}</ThemedSelect>
+      <ThemedSelect value={filters.severity} onChange={(event) => setFilters({ ...filters, severity: event.target.value })}><option value="">{t('pages.failures.string_6')}</option>{severityOptions.map((item) => <option value={item} key={item}>{item}</option>)}</ThemedSelect>
+      <ThemedSelect value={filters.skillId} onChange={(event) => setFilters({ ...filters, skillId: event.target.value })}><option value="">{t('pages.failures.string_7')}</option>{skillOptions.map((item) => <option value={item} key={item}>{item}</option>)}</ThemedSelect>
+      <ThemedSelect value={filters.toolId} onChange={(event) => setFilters({ ...filters, toolId: event.target.value })}><option value="">{t('pages.failures.string_8')}</option>{toolOptions.map((item) => <option value={item} key={item}>{item}</option>)}</ThemedSelect>
       <span>{filteredItems.length} / {items.length} records</span>
     </div>
-    {items.length === 0 ? <Empty>尚未生成 Failure Record。</Empty> : filteredItems.length === 0 ? <Empty>当前筛选条件下没有 Failure Record。</Empty> : <div className="registry-layout">
+    {items.length === 0 ? <Empty>{t('pages.failures.string_9')}</Empty> : filteredItems.length === 0 ? <Empty>{t('pages.failures.string_10')}</Empty> : <div className="registry-layout">
       <div className="panel registry-list">
-        <div className="panel-title"><AlertTriangle size={15} />Failure 列表 <span>{filteredItems.length}</span></div>
+        <div className="panel-title"><AlertTriangle size={15} />{t('pages.failures.string_11')}<span>{filteredItems.length}</span></div>
         {filteredItems.map((item) => <Link key={item.id} to={`/failures/${item.id}`} className={selected?.id === item.id ? 'active' : ''}>
           <StatusBadge status={item.severity} />
           <div><strong>{item.type}</strong><span>{item.status} · {formatDate(item.lastSeenAt)}</span><p>{item.summary}</p></div>
@@ -94,24 +96,24 @@ export function FailuresPage() {
           <StatusBadge status={detail.status} />
         </div>
         <div className="provider-actions">
-          <button onClick={() => void setStatus('investigating')}><Search size={14} />标记调查中</button>
-          <button onClick={() => void linkFix()}><Wrench size={14} />关联修复</button>
-          <button className="primary" onClick={() => void setStatus('fixed')}><CheckCircle2 size={14} />标记已修复</button>
-          <button className="danger" onClick={() => void setStatus('ignored')}><XCircle size={14} />标记误报/忽略</button>
+          <button onClick={() => void setStatus('investigating')}><Search size={14} />{t('pages.failures.string_12')}</button>
+          <button onClick={() => void linkFix()}><Wrench size={14} />{t('pages.failures.string_13')}</button>
+          <button className="primary" onClick={() => void setStatus('fixed')}><CheckCircle2 size={14} />{t('pages.failures.string_14')}</button>
+          <button className="danger" onClick={() => void setStatus('ignored')}><XCircle size={14} />{t('pages.failures.string_15')}</button>
         </div>
         <div className="registry-facts">
           <span>Run<b>{detail.runId}</b></span>
           <span>Eval Case<b>{detail.evalCaseId ?? '—'}</b></span>
           <span>Skill<b>{detail.skillId ?? '—'}</b></span>
           <span>Tool<b>{detail.toolId ?? '—'}</b></span>
-          <span>首次出现<b>{formatDate(detail.firstSeenAt)}</b></span>
-          <span>最近出现<b>{formatDate(detail.lastSeenAt)}</b></span>
+          <span>{t('pages.failures.string_16')}<b>{formatDate(detail.firstSeenAt)}</b></span>
+          <span>{t('pages.failures.string_17')}<b>{formatDate(detail.lastSeenAt)}</b></span>
         </div>
         <div className="governance-columns">
-          <article className="panel"><div className="panel-title"><AlertTriangle size={15} />证据</div><JsonView value={detail.evidence} /></article>
-          <article className="panel"><div className="panel-title"><Wrench size={15} />建议修复</div><div className="diagnosis-note">{detail.suggestedFix ?? '暂无建议。'}</div></article>
+          <article className="panel"><div className="panel-title"><AlertTriangle size={15} />{t('pages.failures.string_18')}</div><JsonView value={detail.evidence} /></article>
+          <article className="panel"><div className="panel-title"><Wrench size={15} />{t('pages.failures.string_19')}</div><div className="diagnosis-note">{detail.suggestedFix ?? t('pages.failures.string_22')}</div></article>
         </div>
-        {!!detail.fixLinks?.length && <article className="panel"><div className="panel-title"><Wrench size={15} />修复关联</div>
+        {!!detail.fixLinks?.length && <article className="panel"><div className="panel-title"><Wrench size={15} />{t('pages.failures.string_20')}</div>
           {detail.fixLinks.map((link, index) => <div className="ledger-row" key={`${link.linkedAt}-${index}`}><strong>{link.runId ?? link.skillVersion ?? link.toolVersion ?? link.promptVersion}</strong><span>{link.note ?? 'manual link'}</span><em>{formatDate(link.linkedAt)}</em></div>)}
         </article>}
       </div>}

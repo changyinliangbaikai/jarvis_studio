@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useMemo, useState } from 'react';
 import { Cable, CheckCircle2, ChevronLeft, FlaskConical, KeyRound, Power, Wrench } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -31,6 +32,7 @@ interface SkillDetail extends Skill {
 }
 
 export function SkillDebuggerPage() {
+  const { t } = useTranslation();
   const { skillId } = useParams();
   const [testResult, setTestResult] = useState<{ runId: string; status: string; output?: string; error?: string; eventCount: number; toolCalls: Array<{ name: string; success: boolean }> }>();
   const [busy, setBusy] = useState('');
@@ -65,9 +67,9 @@ export function SkillDebuggerPage() {
 
   if (!skills) return <Loading />;
   return <section>
-    {skillId && <Link to="/skills" className="back-link"><ChevronLeft size={14} />返回 Skill Registry</Link>}
-    <PageHeader eyebrow="V0.4 / Skill Registry" title="能力注册表 (Skill Registry)" description="管理 Skill manifest、版本、启停、命中分析、质量评分、权限声明和关联失败。"
-      actions={selected && <><button onClick={() => void runSkillTest(selected)} disabled={busy === `test:${selected.id}`}><FlaskConical size={15} />运行 Skill 测试</button><button onClick={() => void toggle(selected)} disabled={busy === selected.id}><Power size={15} />{selected.status === 'enabled' ? '停用 Skill' : '启用 Skill'}</button></>} />
+    {skillId && <Link to="/skills" className="back-link"><ChevronLeft size={14} />{t('pages.skillDebugger.string_3')}</Link>}
+    <PageHeader eyebrow="V0.4 / Skill Registry" title={t('pages.skillDebugger.string_1')} description={t('pages.skillDebugger.string_2')}
+      actions={selected && <><button onClick={() => void runSkillTest(selected)} disabled={busy === `test:${selected.id}`}><FlaskConical size={15} />{t('pages.skillDebugger.string_4')}</button><button onClick={() => void toggle(selected)} disabled={busy === selected.id}><Power size={15} />{selected.status === 'enabled' ? t('pages.skillDebugger.string_23') : t('pages.skillDebugger.string_24')}</button></>} />
     {(resource.error || detailResource.error) && <div className="notice warning">{resource.error || detailResource.error}</div>}
     <div className="metric-grid compact">
       <Metric label="SKILLS" value={skills.length} tone="cyan" />
@@ -78,19 +80,20 @@ export function SkillDebuggerPage() {
     </div>
     <div className="registry-layout">
       <div className="panel registry-list">
-        <div className="panel-title"><Cable size={15} />Skill 列表 <span>{skills.length}</span></div>
+        <div className="panel-title"><Cable size={15} />{t('pages.skillDebugger.string_5')}<span>{skills.length}</span></div>
         {skills.map((skill) => <Link key={skill.id} to={`/skills/${skill.id}`} className={selected?.id === skill.id ? 'active' : ''}>
           <StatusBadge status={skill.status} />
           <div><strong>{skill.name}</strong><span>{skill.id} · {skill.version}</span><p>{skill.description}</p></div>
           <aside><b>{(skill.successRate * 100).toFixed(0)}%</b><span>{skill.category ?? 'uncategorized'}</span></aside>
         </Link>)}
       </div>
-      {!selected ? <Empty>尚未导入 Skill manifest。</Empty> : !detail ? <Loading /> : <SkillDetailView detail={detail} summary={selected} testResult={testResult} />}
+      {!selected ? <Empty>{t('pages.skillDebugger.string_6')}</Empty> : !detail ? <Loading /> : <SkillDetailView detail={detail} summary={selected} testResult={testResult} />}
     </div>
   </section>;
 }
 
 function SkillDetailView({ detail, summary, testResult }: { detail: SkillDetail; summary: Skill; testResult?: { runId: string; status: string; output?: string; error?: string; eventCount: number; toolCalls: Array<{ name: string; success: boolean }> } }) {
+  const { t } = useTranslation();
   const hitCount = Number(detail.hitCount ?? summary.hitCount ?? 0);
   const successRate = Number(detail.successRate ?? summary.successRate ?? 0);
   const avgScore = Number(detail.avgScore ?? summary.avgScore ?? 0);
@@ -103,44 +106,44 @@ function SkillDetailView({ detail, summary, testResult }: { detail: SkillDetail;
           <StatusBadge status={detail.status} />
         </div>
         <div className="registry-facts">
-          <span>命中次数<b>{hitCount}</b></span>
-          <span>成功率<b>{(successRate * 100).toFixed(1)}%</b></span>
-          <span>平均评分<b>{avgScore.toFixed(1)}</b></span>
-          <span>工具错误率<b>{(toolErrorRate * 100).toFixed(1)}%</b></span>
-          <span>最近命中<b>{formatDate(detail.lastUsedAt)}</b></span>
-          <span>失败案例<b>{failureCount}</b></span>
+          <span>{t('pages.skillDebugger.string_7')}<b>{hitCount}</b></span>
+          <span>{t('pages.skillDebugger.string_8')}<b>{(successRate * 100).toFixed(1)}%</b></span>
+          <span>{t('pages.skillDebugger.string_9')}<b>{avgScore.toFixed(1)}</b></span>
+          <span>{t('pages.skillDebugger.string_10')}<b>{(toolErrorRate * 100).toFixed(1)}%</b></span>
+          <span>{t('pages.skillDebugger.string_11')}<b>{formatDate(detail.lastUsedAt)}</b></span>
+          <span>{t('pages.skillDebugger.string_12')}<b>{failureCount}</b></span>
         </div>
         <div className="governance-columns">
-          <article className="panel"><div className="panel-title"><Wrench size={15} />工具与权限</div>
+          <article className="panel"><div className="panel-title"><Wrench size={15} />{t('pages.skillDebugger.string_13')}</div>
             <div className="chip-row">{stringArray(detail.manifest.requiredTools).map((tool) => <span key={tool}><Wrench size={12} />{tool}</span>)}</div>
             <div className="chip-row">{stringArray(detail.manifest.permissions).map((permission) => <span key={permission}><KeyRound size={12} />{permission}</span>)}</div>
           </article>
-          <article className="panel"><div className="panel-title"><CheckCircle2 size={15} />版本记录 <span>{detail.versions.length}</span></div>
+          <article className="panel"><div className="panel-title"><CheckCircle2 size={15} />{t('pages.skillDebugger.string_14')}<span>{detail.versions.length}</span></div>
             {detail.versions.map((version) => <div className="ledger-row" key={version.id}><strong>{version.version}</strong><span>{formatDate(version.createdAt)}</span></div>)}
           </article>
         </div>
         <div className="governance-columns">
-          <article className="panel"><div className="panel-title"><Cable size={15} />命中分析</div>
-            {detail.selectionEvents.length === 0 ? <Empty>暂无 Skill 选择事件。</Empty> : detail.selectionEvents.slice(0, 5).map((event) => <div className="candidate-ledger" key={event.id}>
+          <article className="panel"><div className="panel-title"><Cable size={15} />{t('pages.skillDebugger.string_15')}</div>
+            {detail.selectionEvents.length === 0 ? <Empty>{t('pages.skillDebugger.string_16')}</Empty> : detail.selectionEvents.slice(0, 5).map((event) => <div className="candidate-ledger" key={event.id}>
               <strong>{event.runId}</strong>
               {event.candidates.map((candidate, index) => <span key={`${candidate.skillId}-${candidate.status}-${index}`} className={candidate.status === 'selected' ? 'selected' : ''}>{candidate.skillId}<b>{candidate.score}</b><em>{candidate.matchedBy.join(', ') || 'no signal'}</em></span>)}
             </div>)}
           </article>
-          <article className="panel"><div className="panel-title"><FlaskConical size={15} />失败案例</div>
-            {detail.failures.length === 0 ? <Empty>暂无关联 Failure。</Empty> : detail.failures.map((failure) => <div className="ledger-row" key={failure.id}><StatusBadge status={failure.severity} /><strong>{failure.type}</strong><span>{failure.summary}</span></div>)}
+          <article className="panel"><div className="panel-title"><FlaskConical size={15} />{t('pages.skillDebugger.string_17')}</div>
+            {detail.failures.length === 0 ? <Empty>{t('pages.skillDebugger.string_18')}</Empty> : detail.failures.map((failure) => <div className="ledger-row" key={failure.id}><StatusBadge status={failure.severity} /><strong>{failure.type}</strong><span>{failure.summary}</span></div>)}
           </article>
         </div>
-        {testResult && <article className="panel"><div className="panel-title"><FlaskConical size={15} />最近 Skill 测试 <StatusBadge status={testResult.status} /></div>
+        {testResult && <article className="panel"><div className="panel-title"><FlaskConical size={15} />{t('pages.skillDebugger.string_19')}<StatusBadge status={testResult.status} /></div>
           <div className="registry-facts">
             <span>Run<b><Link to={`/runs/${testResult.runId}`}>{testResult.runId.slice(0, 18)}</Link></b></span>
-            <span>事件数<b>{testResult.eventCount}</b></span>
-            <span>工具调用<b>{testResult.toolCalls.length}</b></span>
-            <span>状态<b>{testResult.status}</b></span>
+            <span>{t('pages.skillDebugger.string_20')}<b>{testResult.eventCount}</b></span>
+            <span>{t('pages.skillDebugger.string_21')}<b>{testResult.toolCalls.length}</b></span>
+            <span>{t('common.status')}<b>{testResult.status}</b></span>
           </div>
           <div className="chip-row">{testResult.toolCalls.map((tool, index) => <span key={`${tool.name}-${index}`}><StatusBadge status={tool.success ? 'success' : 'failed'} />{tool.name}</span>)}</div>
           <div className="diagnosis-note">{testResult.error ?? testResult.output}</div>
         </article>}
-        {detail.instructionText && <div className="panel"><div className="panel-title"><Cable size={15} />SKILL.md 指令正文</div><pre className="instruction-text">{detail.instructionText}</pre></div>}
+        {detail.instructionText && <div className="panel"><div className="panel-title"><Cable size={15} />{t('pages.skillDebugger.string_22')}</div><pre className="instruction-text">{detail.instructionText}</pre></div>}
         <div className="panel"><div className="panel-title"><Cable size={15} />Manifest</div><JsonView value={detail.manifest} /></div>
       </div>;
 }

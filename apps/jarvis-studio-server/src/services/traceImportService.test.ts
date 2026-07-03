@@ -56,7 +56,7 @@ describe('trace import service', () => {
 
   it('maps split xiao-niu-ma trace events into normalized run, llm, and tool rows', () => {
     const events = [
-      { eventId: 'xs1', eventType: 'run.start', timestamp: '2026-07-03T03:33:48.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', payload: { name: 'split run', agentId: 'xiao-niu-ma' } },
+      { eventId: 'xs1', eventType: 'run.start', timestamp: '2026-07-03T03:33:48.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', payload: { name: 'split run', agentId: 'xiao-niu-ma', userMessage: 'hello trace input' } },
       { eventId: 'xs2', eventType: 'context.build', timestamp: '2026-07-03T03:33:49.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_ctx_1', payload: { contextSnapshotId: 'ctx_x1', messageCount: 2, toolCount: 1, promptChars: 120 } },
       { eventId: 'xs3', eventType: 'llm.request.start', timestamp: '2026-07-03T03:33:50.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_llm_1', parentSpanId: 'span_ctx_1', payload: { model: 'runtime-engine', messageCount: 3, toolCount: 1 } },
       { eventId: 'xs4', eventType: 'llm.usage', timestamp: '2026-07-03T03:33:51.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_llm_1', parentSpanId: 'span_ctx_1', payload: { usage: { promptTokens: 100, completionTokens: 20, totalTokens: 120, maxTokens: 200000, cacheHitTokens: 40 } } },
@@ -69,6 +69,7 @@ describe('trace import service', () => {
 
     expect(importTraceJsonl(events.map((event) => JSON.stringify(event)).join('\n'))).toEqual({ importedEvents: 9, runIds: ['rx1'] });
     expect(get<{ latency_ms: number; total_tokens: number }>('SELECT latency_ms, total_tokens FROM runs WHERE id=?', 'rx1')).toMatchObject({ latency_ms: 8000, total_tokens: 120 });
+    expect(JSON.parse(get<{ metadata_json: string }>('SELECT metadata_json FROM runs WHERE id=?', 'rx1')!.metadata_json)).toMatchObject({ userMessage: 'hello trace input', tokenUsage: { totalTokens: 120 } });
     expect(get<{ n: number }>('SELECT COUNT(*) AS n FROM llm_calls WHERE run_id=?', 'rx1')?.n).toBe(1);
     expect(get<{ n: number }>('SELECT COUNT(*) AS n FROM tool_calls WHERE run_id=?', 'rx1')?.n).toBe(1);
     expect(get<{ n: number }>('SELECT COUNT(*) AS n FROM spans WHERE run_id=?', 'rx1')?.n).toBeGreaterThan(1);

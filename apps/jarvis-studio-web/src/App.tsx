@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
-import { Activity, AlertTriangle, AppWindow, Beaker, Bot, Boxes, Braces, Cable, ClipboardList, FileArchive, FileText, FolderOpen, GitCompareArrows, Grid3X3, Layers, LockKeyhole, MessageSquareText, Moon, PlayCircle, Radar, ScrollText, ServerCog, Settings, ShieldCheck, SlidersHorizontal, Sun, TerminalSquare, type LucideIcon } from 'lucide-react';
+import { Activity, AlertTriangle, AppWindow, Beaker, Bot, Boxes, Braces, Cable, ClipboardList, FileArchive, FileText, FolderOpen, GitCompareArrows, Globe, Grid3X3, Layers, LockKeyhole, MessageSquareText, Moon, PlayCircle, Radar, ScrollText, ServerCog, Settings, ShieldCheck, SlidersHorizontal, Sun, TerminalSquare, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, NavLink, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { Loading } from './components/Primitives.tsx';
 import { useTheme } from './hooks/useTheme.ts';
 
@@ -9,12 +9,15 @@ const AgentsPage = lazy(() => import('./pages/AgentsPage.tsx').then((module) => 
 const PlaygroundPage = lazy(() => import('./pages/PlaygroundPage.tsx').then((module) => ({ default: module.PlaygroundPage })));
 const CasesPage = lazy(() => import('./pages/CasesPage.tsx').then((module) => ({ default: module.CasesPage })));
 const EvaluationsPage = lazy(() => import('./pages/EvaluationsPage.tsx').then((module) => ({ default: module.EvaluationsPage })));
+const EvaluationSuiteDetailPage = lazy(() => import('./pages/EvaluationSuiteDetailPage.tsx').then((module) => ({ default: module.EvaluationSuiteDetailPage })));
+const LightEvalRunDetailPage = lazy(() => import('./pages/LightEvalRunDetailPage.tsx').then((module) => ({ default: module.LightEvalRunDetailPage })));
 const RunsPage = lazy(() => import('./pages/RunsPage.tsx').then((module) => ({ default: module.RunsPage })));
 const TracePage = lazy(() => import('./pages/TracePage.tsx').then((module) => ({ default: module.TracePage })));
 const ConversationPage = lazy(() => import('./pages/ConversationPage.tsx').then((module) => ({ default: module.ConversationPage })));
 const ContextPage = lazy(() => import('./pages/ContextPage.tsx').then((module) => ({ default: module.ContextPage })));
 const ToolConsolePage = lazy(() => import('./pages/ToolConsolePage.tsx').then((module) => ({ default: module.ToolConsolePage })));
 const PromptLabPage = lazy(() => import('./pages/PromptLabPage.tsx').then((module) => ({ default: module.PromptLabPage })));
+const PromptComparePage = lazy(() => import('./pages/PromptComparePage.tsx').then((module) => ({ default: module.PromptComparePage })));
 const EvalBenchPage = lazy(() => import('./pages/EvalBenchPage.tsx').then((module) => ({ default: module.EvalBenchPage })));
 const ComparePage = lazy(() => import('./pages/ComparePage.tsx').then((module) => ({ default: module.ComparePage })));
 const SkillDebuggerPage = lazy(() => import('./pages/SkillDebuggerPage.tsx').then((module) => ({ default: module.SkillDebuggerPage })));
@@ -39,50 +42,73 @@ const TaskComparePage = lazy(() => import('./pages/TaskComparePage.tsx').then((m
 
 type StudioIcon = LucideIcon;
 
-const navGroups: Array<{ label: string; items: Array<[string, StudioIcon, string]> }> = [
-  { label: '设计与调试', items: [['/', Bot, 'Agents'], ['/prompts', ScrollText, 'Prompts'], ['/playground', PlayCircle, 'Playground']] },
-  { label: '观察与沉淀', items: [['/runs', Activity, 'Runs / Trace'], ['/conversation', MessageSquareText, '对话回放'], ['/cases', ClipboardList, 'Cases']] },
-  { label: '评测与设置', items: [['/evaluations', Beaker, 'Evaluations'], ['/settings', Settings, 'Settings']] }
+const navGroups: Array<{ labelKey: string; items: Array<[string, StudioIcon, string]> }> = [
+  { labelKey: 'nav.groupPromptOps', items: [['/agents', Bot, 'nav.agents'], ['/prompts', ScrollText, 'nav.prompts'], ['/playground', PlayCircle, 'nav.playground'], ['/runs', Activity, 'nav.runs'], ['/cases', ClipboardList, 'nav.cases'], ['/evaluations', Beaker, 'nav.evaluations'], ['/settings', Settings, 'nav.settings']] }
 ];
 
-const settingsSections: Array<{ title: string; description: string; links: Array<[string, StudioIcon, string, string]> }> = [
+const settingsSections: Array<{ titleKey: string; descriptionKey: string; links: Array<[string, StudioIcon, string, string]> }> = [
   {
-    title: '高级评测',
-    description: '原 v0.5 的评测空间、场景、任务、发布门禁与报告保留为高级入口，避免干扰日常 Prompt 调试。',
-    links: [['/evals/advanced', Beaker, '评测工作台', 'Eval bench'], ['/workspaces', FolderOpen, '评测空间', 'Eval workspaces'], ['/scenarios', Layers, '评测场景', 'Scenario templates'], ['/tasks', ClipboardList, '测试任务', 'Workbench tasks'], ['/gates', ShieldCheck, '发布门禁', 'Release gates'], ['/reports', FileText, '评测报告', 'Reports']]
+    titleKey: 'pages.settings.sections.advanced.title',
+    descriptionKey: 'pages.settings.sections.advanced.description',
+    links: [
+      ['/evals/advanced', Beaker, 'nav.evalBench', 'pages.settings.sections.advanced.evalBenchMeta'],
+      ['/workspaces', FolderOpen, 'nav.evalWorkspaces', 'pages.settings.sections.advanced.workspacesMeta'],
+      ['/scenarios', Layers, 'nav.scenarioTemplates', 'pages.settings.sections.advanced.scenariosMeta'],
+      ['/tasks', ClipboardList, 'nav.workbenchTasks', 'pages.settings.sections.advanced.tasksMeta'],
+      ['/gates', ShieldCheck, 'nav.releaseGates', 'pages.settings.sections.advanced.gatesMeta'],
+      ['/reports', FileText, 'nav.reports', 'pages.settings.sections.advanced.reportsMeta']
+    ]
   },
   {
-    title: '能力与服务商',
-    description: '模型服务商、Skill 与 Tool Registry 属于低频治理入口，集中在这里维护。',
-    links: [['/providers', ServerCog, '模型服务商', 'Provider profiles'], ['/skills', Cable, 'Skill Registry', '技能注册表'], ['/tools', Boxes, 'Tool Registry', '工具注册表']]
+    titleKey: 'pages.settings.sections.capabilities.title',
+    descriptionKey: 'pages.settings.sections.capabilities.description',
+    links: [
+      ['/providers', ServerCog, 'nav.providerProfiles', 'pages.settings.sections.capabilities.providersMeta'],
+      ['/skills', Cable, 'nav.skillRegistry', 'pages.settings.sections.capabilities.skillsMeta'],
+      ['/tools', Boxes, 'nav.toolRegistry', 'pages.settings.sections.capabilities.toolsMeta']
+    ]
   },
   {
-    title: '运行治理',
-    description: '审批、工具调用和上下文策略用于排查运行边界与权限策略。',
-    links: [['/runtime', PlayCircle, '实时运行', 'Runtime adapter'], ['/tool-calls', TerminalSquare, '工具调用', 'Tool calls'], ['/artifacts', FileArchive, '运行产物', 'Artifacts'], ['/approvals', LockKeyhole, '运行审批', 'Runtime approvals'], ['/context', Braces, 'Context Budget', '上下文预算'], ['/context-strategies', SlidersHorizontal, '预算策略', 'Policy presets']]
+    titleKey: 'pages.settings.sections.governance.title',
+    descriptionKey: 'pages.settings.sections.governance.description',
+    links: [
+      ['/runtime', PlayCircle, 'nav.runtimeAdapter', 'pages.settings.sections.governance.runtimeMeta'],
+      ['/tool-calls', TerminalSquare, 'nav.toolCalls', 'pages.settings.sections.governance.toolCallsMeta'],
+      ['/artifacts', FileArchive, 'nav.artifacts', 'pages.settings.sections.governance.artifactsMeta'],
+      ['/approvals', LockKeyhole, 'nav.runtimeApprovals', 'pages.settings.sections.governance.approvalsMeta'],
+      ['/context', Braces, 'nav.contextBudget', 'pages.settings.sections.governance.contextMeta'],
+      ['/context-strategies', SlidersHorizontal, 'nav.policyPresets', 'pages.settings.sections.governance.strategiesMeta']
+    ]
   },
   {
-    title: '实验与诊断',
-    description: 'Failure 诊断、实验矩阵和回归对比保留原路由，但不再作为主工作流入口。',
-    links: [['/failures', AlertTriangle, 'Failure 诊断', 'Failure diagnosis'], ['/experiments', Grid3X3, '实验矩阵', 'Experiment matrix'], ['/compare', GitCompareArrows, '回归对比', 'Regression compare'], ['/task-dashboard', Activity, '评测大盘', 'Legacy dashboard'], ['/task-compare', GitCompareArrows, '任务对比', 'Task compare']]
+    titleKey: 'pages.settings.sections.experiments.title',
+    descriptionKey: 'pages.settings.sections.experiments.description',
+    links: [
+      ['/failures', AlertTriangle, 'nav.failureDiagnosis', 'pages.settings.sections.experiments.failuresMeta'],
+      ['/experiments', Grid3X3, 'nav.experimentMatrix', 'pages.settings.sections.experiments.experimentsMeta'],
+      ['/compare', GitCompareArrows, 'nav.regressionCompare', 'pages.settings.sections.experiments.compareMeta'],
+      ['/task-dashboard', Activity, 'nav.legacyDashboard', 'pages.settings.sections.experiments.dashboardMeta'],
+      ['/task-compare', GitCompareArrows, 'nav.taskCompare', 'pages.settings.sections.experiments.taskCompareMeta']
+    ]
   }
 ];
 
+
 export function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { theme, toggle: toggleTheme } = useTheme();
   const isDark = theme === 'dark';
   return <div className="shell">
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-mark"><Radar size={22} /></div>
-        <div><strong>{t('shell.brand')}</strong><span>STUDIO / v0.6</span></div>
+        <div><strong>{t('shell.brand')}</strong><span>STUDIO / v{t('shell.version')}</span></div>
       </div>
       <div className="system-state"><i /><span>{t('shell.mode')}</span><b>{t('shell.online')}</b></div>
-      <nav>{navGroups.map((group) => <div className="nav-group" key={group.label}>
-        <span>{group.label}</span>
-        {group.items.map(([to, Icon, label]) =>
-          <NavLink key={to} to={to} end={to === '/'}><Icon size={16} /><span>{label}</span></NavLink>
+      <nav>{navGroups.map((group) => <div className="nav-group" key={group.labelKey}>
+        <span>{t(group.labelKey)}</span>
+        {group.items.map(([to, Icon, key]) =>
+          <NavLink key={to} to={to} end={to === '/'}><Icon size={16} /><span>{t(key)}</span></NavLink>
         )}
       </div>)}</nav>
       <footer>
@@ -90,28 +116,46 @@ export function App() {
         <span>{t('shell.footer')}</span>
         <button
           type="button"
+          className="lang-toggle"
+          onClick={() => {
+            const nextLng = i18n.language.startsWith('zh') ? 'en' : 'zh';
+            void i18n.changeLanguage(nextLng);
+          }}
+          aria-label={t('shell.toggleLanguage')}
+          title={t('shell.toggleLanguage')}
+        >
+          <Globe size={13} />
+        </button>
+        <button
+          type="button"
           className="theme-toggle"
           onClick={toggleTheme}
-          aria-label={isDark ? '切换到浅色模式' : '切换到深色模式'}
-          title={isDark ? '切换到浅色模式' : '切换到深色模式'}
+          aria-label={isDark ? t('shell.toggleThemeLight') : t('shell.toggleThemeDark')}
+          title={isDark ? t('shell.toggleThemeLight') : t('shell.toggleThemeDark')}
         >
           {isDark ? <Sun size={13} /> : <Moon size={13} />}
         </button>
-        <b>0.6</b>
+        <b>{t('shell.version')}</b>
       </footer>
     </aside>
     <main className="workspace">
-      <div className="topline"><span>Prompt-first Agent 工作台</span><span className="topline-id">Agent → Prompt → Playground → Trace → Case → Eval</span></div>
+      <div className="topline"><span>{t('shell.toplineTitle')}</span><span className="topline-id">{t('shell.toplineId')}</span></div>
       <Suspense fallback={<Loading />}>
         <Routes>
-          <Route path="/" element={<AgentsPage />} />
+          <Route path="/" element={<Navigate to="/agents" replace />} />
+          <Route path="/agents" element={<AgentsPage />} />
+          <Route path="/agents/:agentId" element={<AgentsPage />} />
           <Route path="/prompts" element={<PromptLabPage />} />
+          <Route path="/prompts/:promptId" element={<PromptLabPage />} />
+          <Route path="/prompts/:promptId/compare" element={<PromptComparePage />} />
           <Route path="/playground" element={<PlaygroundPage />} />
           <Route path="/runs" element={<RunsPage />} />
           <Route path="/runs/:runId" element={<TracePage />} />
           <Route path="/conversation" element={<ConversationPage />} />
           <Route path="/cases" element={<CasesPage />} />
           <Route path="/evaluations" element={<EvaluationsPage />} />
+          <Route path="/evaluations/runs/:evalRunId" element={<LightEvalRunDetailPage />} />
+          <Route path="/evaluations/:suiteId" element={<EvaluationSuiteDetailPage />} />
           <Route path="/workspaces" element={<WorkspacesPage />} />
           <Route path="/task-dashboard" element={<TaskDashboardPage />} />
           <Route path="/tasks" element={<TasksPage />} />
@@ -147,16 +191,18 @@ export function App() {
 }
 
 function SystemSettingsPage() {
+  const { t } = useTranslation();
   return <section>
     <header className="page-header">
-      <div><span className="eyebrow">System Settings</span><h1>系统设置 / Advanced</h1><p>主侧栏只保留日常 Agent 设计闭环；低频治理、评测空间、报告和 Runtime 管理统一收敛到这里。</p></div>
+      <div><span className="eyebrow">{t('pages.settings.subtitle')}</span><h1>{t('pages.settings.title')}</h1><p>{t('pages.settings.description')}</p></div>
     </header>
     <div className="system-settings-grid">
-      {settingsSections.map((section) => <article className="panel settings-section" key={section.title}>
-        <div className="panel-title">{section.title}<span>{section.links.length}</span></div>
-        <p>{section.description}</p>
-        <div>{section.links.map(([to, Icon, label, meta]) => <Link key={to} to={to}><Icon size={16} /><span><strong>{label}</strong><em>{meta}</em></span></Link>)}</div>
+      {settingsSections.map((section) => <article className="panel settings-section" key={section.titleKey}>
+        <div className="panel-title">{t(section.titleKey)}<span>{section.links.length}</span></div>
+        <p>{t(section.descriptionKey)}</p>
+        <div>{section.links.map(([to, Icon, labelKey, metaKey]) => <Link key={to} to={to}><Icon size={16} /><span><strong>{t(labelKey)}</strong><em>{t(metaKey)}</em></span></Link>)}</div>
       </article>)}
     </div>
   </section>;
 }
+

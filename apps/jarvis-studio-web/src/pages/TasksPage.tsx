@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ThemedSelect } from "../components/ThemedSelect.tsx";
 import type { ReactNode } from 'react';
@@ -71,23 +72,24 @@ interface TaskForm {
 
 type SignalTab = 'diagnostics' | 'capabilities' | 'artifacts';
 
-const blankTaskForm: TaskForm = {
-  title: '分析客户清单',
-  description: '验证 Agent 是否能读取客户 Excel 并输出异常分析与营销建议。',
+const getBlankTaskForm = (t: (key: string) => string): TaskForm => ({
+  title: t('pages.tasks.string_45'),
+  description: t('pages.tasks.string_46'),
   workspaceId: '',
   scenarioTemplateId: 'scenario_excel_analysis',
   priority: 'p1',
-  message: '分析客户清单，识别异常并给出营销建议。',
+  message: t('pages.tasks.string_47'),
   inputFiles: 'input/customer_data.xlsx'
-};
-
-const signalTabs: Array<{ id: SignalTab; label: string; icon: ReactNode }> = [
-  { id: 'diagnostics', label: '运行诊断', icon: <Activity size={14} /> },
-  { id: 'capabilities', label: '能力分析', icon: <ShieldCheck size={14} /> },
-  { id: 'artifacts', label: '产物与日志', icon: <FileArchive size={14} /> }
-];
+});
 
 export function TasksPage() {
+  const { t } = useTranslation();
+  const signalTabs = useMemo<Array<{ id: SignalTab; label: string; icon: ReactNode }>>(() => [
+    { id: 'diagnostics', label: t('pages.tasks.string_48'), icon: <Activity size={14} /> },
+    { id: 'capabilities', label: t('pages.tasks.string_49'), icon: <ShieldCheck size={14} /> },
+    { id: 'artifacts', label: t('pages.tasks.string_50'), icon: <FileArchive size={14} /> }
+  ], [t]);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const urlWorkspaceId = searchParams.get('workspaceId') ?? '';
   const urlScenarioId = searchParams.get('scenarioTemplateId') ?? '';
@@ -98,8 +100,8 @@ export function TasksPage() {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState('');
   const [signalTab, setSignalTab] = useState<SignalTab>('diagnostics');
-  const [form, setForm] = useState<TaskForm>(blankTaskForm);
-  const [editForm, setEditForm] = useState<TaskForm>(blankTaskForm);
+  const [form, setForm] = useState<TaskForm>(() => getBlankTaskForm(t));
+  const [editForm, setEditForm] = useState<TaskForm>(() => getBlankTaskForm(t));
   const load = useCallback(async (signal: AbortSignal) => {
     const [tasks, workspaces, scenarios] = await Promise.all([
       api<Task[]>('/api/tasks', { signal }),
@@ -149,12 +151,12 @@ export function TasksPage() {
     const excelScenario = scenarios.find((item) =>
       item.id.includes('excel') || item.name.includes('Excel') || item.category === 'data-analysis') ?? scenarios[0];
     setForm({
-      title: 'Excel 异常分析样例',
-      description: 'Demo 任务：检查客户数据表，要求 Agent 生成数据概况、异常发现与营销建议。',
+      title: t('pages.tasks.string_51'),
+      description: t('pages.tasks.string_52'),
       workspaceId: demoWorkspace?.id ?? form.workspaceId,
       scenarioTemplateId: excelScenario?.id ?? form.scenarioTemplateId,
       priority: 'p1',
-      message: '分析客户清单，识别异常数据，输出数据概况、异常发现和营销建议。',
+      message: t('pages.tasks.string_53'),
       inputFiles: 'input/customer_data.xlsx'
     });
   };
@@ -166,10 +168,10 @@ export function TasksPage() {
       const created = await post<Task>('/api/tasks', taskPayload(form));
       await resource.reload();
       if (created?.id) setSelectedId(created.id);
-      setNotice(`测试任务「${created?.title ?? form.title}」已创建。`);
+      setNotice(t('pages.tasks.string_54'));
       closeCreate();
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : '创建测试任务失败');
+      setNotice(caught instanceof Error ? caught.message : t('pages.tasks.string_55'));
     } finally {
       setBusy('');
     }
@@ -189,19 +191,19 @@ export function TasksPage() {
     try {
       const saved = await api<Task>(`/api/tasks/${selected.id}`, { method: 'PUT', body: JSON.stringify(taskPayload(editForm)) });
       setEditing(false);
-      setNotice(`测试任务「${saved.title}」已更新。`);
+      setNotice(t('pages.tasks.string_56'));
       await resource.reload();
       await detailResource.reload();
       setSelectedId(saved.id);
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : '更新测试任务失败');
+      setNotice(caught instanceof Error ? caught.message : t('pages.tasks.string_57'));
     } finally {
       setBusy('');
     }
   };
 
   const remove = async () => {
-    if (!selected || !window.confirm(`删除测试任务「${selected.title}」？`)) return;
+    if (!selected || !window.confirm(t('pages.tasks.string_58'))) return;
     const deletedId = selected.id;
     setBusy('delete');
     setNotice('');
@@ -211,10 +213,10 @@ export function TasksPage() {
       detailResource.setData(undefined);
       setSelectedId('');
       setEditing(false);
-      setNotice(`测试任务「${selected.title}」已删除。`);
+      setNotice(t('pages.tasks.string_59'));
       await resource.reload();
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : '删除测试任务失败');
+      setNotice(caught instanceof Error ? caught.message : t('pages.tasks.string_60'));
     } finally {
       setBusy('');
     }
@@ -225,19 +227,19 @@ export function TasksPage() {
     setNotice('');
     try {
       const data = await post<unknown>(`/api/tasks/${selected.id}/${kind}`, {});
-      setNotice(`${kind} 已执行`);
+      setNotice(t('pages.tasks.string_61'));
       await detailResource.reload();
       await resource.reload();
-      if (kind === 'start') setNotice(`EvalTaskRunner 已通过 RuntimeAdapter 启动测试任务，结果会异步写回。${JSON.stringify(data).slice(0, 120)}`);
+      if (kind === 'start') setNotice(t('pages.tasks.string_62'));
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : `${kind} 执行失败`);
+      setNotice(caught instanceof Error ? caught.message : t('pages.tasks.string_63'));
       await detailResource.reload().catch(() => undefined);
     }
   };
 
   return <section>
-    <PageHeader eyebrow="V0.5 / EvalTaskRunner" title="测试任务" description="测试任务用于评估不同模型、Prompt、Skill、Tool 和上下文策略下的 Agent 表现。Studio 只编排预检、RuntimeAdapter 调用、Trace/运行产物/运行审批收集、后验和 Eval Result，不承载正式业务任务。"
-      actions={<><button onClick={() => void resource.reload()}><RefreshCw size={14} />刷新</button><button className="primary" onClick={() => setCreating(true)}><FilePlus2 size={14} />新建任务</button></>} />
+    <PageHeader eyebrow="V0.5 / EvalTaskRunner" title={t('pages.tasks.string_1')} description={t('pages.tasks.string_2')}
+      actions={<><button onClick={() => void resource.reload()}><RefreshCw size={14} />{t('pages.tasks.string_7')}</button><button className="primary" onClick={() => setCreating(true)}><FilePlus2 size={14} />{t('pages.tasks.string_8')}</button></>} />
     {(resource.error || detailResource.error || notice) && <div className="notice warning">{resource.error || detailResource.error || notice}</div>}
     <div className="metric-grid compact">
       <Metric label="TEST TASKS" value={displayTasks.length} tone="cyan" />
@@ -248,15 +250,15 @@ export function TasksPage() {
     </div>
     <div className="workbench-grid">
       <div className="panel registry-list">
-        <div className="panel-title"><ClipboardList size={15} />测试任务队列 <span>{displayTasks.length}</span></div>
+        <div className="panel-title"><ClipboardList size={15} />{t('pages.tasks.string_9')}<span>{displayTasks.length}</span></div>
         {resource.loading && !tasks ? <Loading /> : displayTasks.length ? displayTasks.map((task) => <button key={task.id} className={selected?.id === task.id ? 'active' : ''} onClick={() => { setSelectedId(task.id); setEditing(false); }}>
           <StatusBadge status={task.status} />
-          <div><strong>{task.title}</strong><span>{task.scenarioName ?? task.scenarioTemplateId ?? '无场景'} · {task.workspaceName ?? task.workspaceId}</span><p>{task.currentRunId ?? '尚未运行'}</p></div>
+          <div><strong>{task.title}</strong><span>{task.scenarioName ?? task.scenarioTemplateId ?? t('pages.tasks.string_64')} · {task.workspaceName ?? task.workspaceId}</span><p>{task.currentRunId ?? t('pages.tasks.string_65')}</p></div>
           <aside><b>{task.priority}</b><span>{formatDate(task.updatedAt)}</span></aside>
-        </button>) : <Empty>暂无测试任务。可以从评测空间详情页带入 workspaceId，或直接新建一个任务。</Empty>}
+        </button>) : <Empty>{t('pages.tasks.string_10')}</Empty>}
         <div className="mini-form task-create-entry">
-          <button className="primary" disabled={!workspaces.length} onClick={() => setCreating(true)}><FilePlus2 size={14} />打开新建任务表单</button>
-          <button onClick={() => { loadPreset(); setCreating(true); }} disabled={!workspaces.length || !scenarios.length}><Sparkles size={14} />载入 Preset Demo</button>
+          <button className="primary" disabled={!workspaces.length} onClick={() => setCreating(true)}><FilePlus2 size={14} />{t('pages.tasks.string_11')}</button>
+          <button onClick={() => { loadPreset(); setCreating(true); }} disabled={!workspaces.length || !scenarios.length}><Sparkles size={14} />{t('pages.tasks.string_12')}</button>
         </div>
       </div>
       <div className="panel workbench-detail">
@@ -267,9 +269,9 @@ export function TasksPage() {
             <button className="primary" onClick={() => void action('start')}><Play size={14} />Start</button>
             <button disabled={selected.status !== 'ready' && selected.status !== 'waiting_approval'} onClick={() => void action('resume')}>Resume</button>
             <button onClick={() => void action('replay')}>Replay</button>
-            <button onClick={() => void action('convert-to-eval-case')}>转为 Eval Case</button>
-            <button onClick={startEdit}><Pencil size={14} />编辑</button>
-            <button className="danger" disabled={busy === 'delete'} onClick={() => void remove()}><Trash2 size={14} />删除</button>
+            <button onClick={() => void action('convert-to-eval-case')}>{t('pages.tasks.string_13')}</button>
+            <button onClick={startEdit}><Pencil size={14} />{t('common.edit')}</button>
+            <button className="danger" disabled={busy === 'delete'} onClick={() => void remove()}><Trash2 size={14} />{t('common.delete')}</button>
           </div>
           {editing && <TaskEditor form={editForm} workspaces={workspaces} scenarios={scenarios} busy={busy === 'save'} onChange={setEditForm} onCancel={() => setEditing(false)} onSave={() => void saveEdit()} />}
           <div className="registry-facts">
@@ -278,7 +280,7 @@ export function TasksPage() {
             <span>Skill<b>{selected.selectedSkillId ?? '—'}</b></span>
             <span>Run<b>{selected.currentRunId ?? '—'}</b></span>
           </div>
-          <div className="notice task-guidance"><Info size={14} />Preflight / Postflight 继承自评测场景模板。要调整前置检查和验收断言，请进入 <Link to="/scenarios">评测场景模板</Link> 编辑规则。</div>
+          <div className="notice task-guidance"><Info size={14} />{t('pages.tasks.string_14')}<Link to="/scenarios">{t('pages.tasks.string_15')}</Link>{t('pages.tasks.string_16')}</div>
           <div className="workbench-split task-check-summary">
             <CheckResultPanel title="Preflight" value={selected.preflight} />
             <CheckResultPanel title="Postflight" value={selected.postflight} score={selected.score} />
@@ -292,52 +294,52 @@ export function TasksPage() {
             <div className="task-signal-grid">
               {signalTab === 'diagnostics' && <>
                 <SignalPanel title="Runs / Trace" icon={<Activity size={15} />} count={selected.runs?.length ?? 0}>
-                  {selected.runs?.length ? <table><thead><tr><th>Run</th><th>状态</th><th>模型</th><th /></tr></thead><tbody>{selected.runs.map((run) => <tr key={run.id}>
+                  {selected.runs?.length ? <table><thead><tr><th>Run</th><th>{t('common.status')}</th><th>{t('pages.tasks.string_17')}</th><th /></tr></thead><tbody>{selected.runs.map((run) => <tr key={run.id}>
                     <td className="run-name"><strong>{run.name}</strong><span>{run.id}</span></td>
                     <td><StatusBadge status={run.status} /></td>
                     <td>{run.model ?? '—'}</td>
                     <td><Link className="icon-link" to={`/runs/${run.id}`}>↗</Link></td>
-                  </tr>)}</tbody></table> : <Empty>尚无 Run。</Empty>}
+                  </tr>)}</tbody></table> : <Empty>{t('pages.tasks.string_18')}</Empty>}
                 </SignalPanel>
                 <SignalPanel title="Runtime Approvals" icon={<LockKeyhole size={15} />} count={selected.approvals?.length ?? 0}>
-                  {selected.approvals?.length ? <table><thead><tr><th>Action</th><th>风险</th><th>状态</th></tr></thead><tbody>{selected.approvals.map((approval) => <tr key={approval.id}>
+                  {selected.approvals?.length ? <table><thead><tr><th>Action</th><th>{t('pages.tasks.string_19')}</th><th>{t('common.status')}</th></tr></thead><tbody>{selected.approvals.map((approval) => <tr key={approval.id}>
                     <td className="run-name"><strong>{approval.requestedAction ?? approval.id}</strong><span>{approval.id}</span></td>
                     <td><StatusBadge status={approval.riskLevel ?? 'low'} /></td>
                     <td><StatusBadge status={approval.status} /></td>
-                  </tr>)}</tbody></table> : <Empty>尚无审批记录。</Empty>}
+                  </tr>)}</tbody></table> : <Empty>{t('pages.tasks.string_20')}</Empty>}
                 </SignalPanel>
               </>}
               {signalTab === 'capabilities' && <>
                 <SignalPanel title="Tool Calls" icon={<ShieldCheck size={15} />} count={selected.toolCalls?.length ?? 0}>
-                  {selected.toolCalls?.length ? <table><thead><tr><th>Tool</th><th>结果</th><th>耗时</th></tr></thead><tbody>{selected.toolCalls.map((tool) => <tr key={tool.id}>
+                  {selected.toolCalls?.length ? <table><thead><tr><th>Tool</th><th>{t('pages.tasks.string_21')}</th><th>{t('pages.tasks.string_22')}</th></tr></thead><tbody>{selected.toolCalls.map((tool) => <tr key={tool.id}>
                     <td className="run-name"><strong>{tool.toolName}</strong><span>{tool.id}</span></td>
                     <td><StatusBadge status={tool.success ? 'success' : 'failed'} /></td>
                     <td>{tool.latencyMs ?? '—'}ms</td>
-                  </tr>)}</tbody></table> : <Empty>当前 Run 尚无工具调用。</Empty>}
+                  </tr>)}</tbody></table> : <Empty>{t('pages.tasks.string_23')}</Empty>}
                 </SignalPanel>
                 <SignalPanel title="Context Snapshots" icon={<Activity size={15} />} count={selected.contextSnapshots?.length ?? 0}>
-                  {selected.contextSnapshots?.length ? <table><thead><tr><th>Snapshot</th><th>策略</th><th>Token</th></tr></thead><tbody>{selected.contextSnapshots.map((snapshot) => <tr key={snapshot.id}>
+                  {selected.contextSnapshots?.length ? <table><thead><tr><th>Snapshot</th><th>{t('pages.tasks.string_24')}</th><th>Token</th></tr></thead><tbody>{selected.contextSnapshots.map((snapshot) => <tr key={snapshot.id}>
                     <td className="run-name"><strong>{snapshot.id}</strong><span>{formatDate(snapshot.createdAt)}</span></td>
                     <td>{snapshot.budgetStrategy ?? '—'}</td>
                     <td>{snapshot.totalTokens ?? '—'} / {snapshot.maxContextTokens ?? '—'}</td>
-                  </tr>)}</tbody></table> : <Empty>当前 Run 尚无上下文快照。</Empty>}
+                  </tr>)}</tbody></table> : <Empty>{t('pages.tasks.string_25')}</Empty>}
                 </SignalPanel>
               </>}
               {signalTab === 'artifacts' && <>
                 <SignalPanel title="Run Artifacts" icon={<FileArchive size={15} />} count={selected.artifacts?.length ?? 0}>
-                  {selected.artifacts?.length ? <table><thead><tr><th>Run Artifact</th><th>ToolCall</th><th>最终</th></tr></thead><tbody>{selected.artifacts.map((artifact) => <tr key={artifact.id}>
+                  {selected.artifacts?.length ? <table><thead><tr><th>Run Artifact</th><th>ToolCall</th><th>{t('pages.tasks.string_26')}</th></tr></thead><tbody>{selected.artifacts.map((artifact) => <tr key={artifact.id}>
                     <td className="run-name"><strong>{artifact.name ?? artifact.path}</strong><span>{artifact.path}</span></td>
                     <td>{artifact.toolCallId ?? '—'}</td>
                     <td>{artifact.isFinal ? 'yes' : 'no'}</td>
-                  </tr>)}</tbody></table> : <Empty>尚无运行产物。</Empty>}
+                  </tr>)}</tbody></table> : <Empty>{t('pages.tasks.string_27')}</Empty>}
                 </SignalPanel>
                 <SignalPanel title="Test Task Events" icon={<ClipboardList size={15} />} count={selected.events?.length ?? 0}>
-                  {selected.events?.length ? <div className="event-ledger">{selected.events.slice(0, 12).map((event) => <div key={event.id}><strong>{event.type}</strong><span>{formatDate(event.createdAt)} · {event.runId ?? 'no-run'}</span></div>)}</div> : <Empty>尚无事件日志。</Empty>}
+                  {selected.events?.length ? <div className="event-ledger">{selected.events.slice(0, 12).map((event) => <div key={event.id}><strong>{event.type}</strong><span>{formatDate(event.createdAt)} · {event.runId ?? 'no-run'}</span></div>)}</div> : <Empty>{t('pages.tasks.string_28')}</Empty>}
                 </SignalPanel>
               </>}
             </div>
           </div>
-        </> : <Empty>尚未创建测试任务。</Empty>}
+        </> : <Empty>{t('pages.tasks.string_29')}</Empty>}
       </div>
     </div>
     {creating && <CreateTaskModal form={form} workspaces={workspaces} scenarios={scenarios} busy={busy === 'create'} onChange={setForm} onPreset={loadPreset} onClose={closeCreate} onSubmit={() => void create()} />}
@@ -354,14 +356,15 @@ function CreateTaskModal({ form, workspaces, scenarios, busy, onChange, onPreset
   onClose: () => void;
   onSubmit: () => void;
 }) {
+  const { t } = useTranslation();
   return <div className="modal-backdrop" onClick={onClose}>
     <div className="modal run-create-modal" onClick={(event) => event.stopPropagation()}>
       <span className="eyebrow">Test Task Configuration</span>
-      <h2>创建测试任务</h2>
-      <p>任务会绑定一个评测空间和一个场景模板。Preflight/Postflight 规则来自所选场景模板。</p>
-      <button onClick={onPreset}><Sparkles size={14} />一键载入 Excel 异常分析样例</button>
+      <h2>{t('pages.tasks.string_30')}</h2>
+      <p>{t('pages.tasks.string_31')}</p>
+      <button onClick={onPreset}><Sparkles size={14} />{t('pages.tasks.string_32')}</button>
       <TaskFormFields form={form} workspaces={workspaces} scenarios={scenarios} onChange={onChange} />
-      <div className="modal-actions"><button onClick={onClose}>取消</button><button className="primary" disabled={busy || !form.title.trim() || !form.workspaceId} onClick={onSubmit}><FilePlus2 size={14} />{busy ? '创建中' : '创建测试任务'}</button></div>
+      <div className="modal-actions"><button onClick={onClose}>{t('common.cancel')}</button><button className="primary" disabled={busy || !form.title.trim() || !form.workspaceId} onClick={onSubmit}><FilePlus2 size={14} />{busy ? t('pages.tasks.string_66') : t('pages.tasks.string_67')}</button></div>
     </div>
   </div>;
 }
@@ -375,10 +378,11 @@ function TaskEditor({ form, workspaces, scenarios, busy, onChange, onCancel, onS
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation();
   return <div className="task-editor-panel">
-    <div className="panel-title"><Pencil size={15} />编辑测试任务 <span>PUT /api/tasks/:id</span></div>
+    <div className="panel-title"><Pencil size={15} />{t('pages.tasks.string_33')}<span>PUT /api/tasks/:id</span></div>
     <TaskFormFields form={form} workspaces={workspaces} scenarios={scenarios} onChange={onChange} />
-    <div className="modal-actions"><button onClick={onCancel}><X size={14} />取消</button><button className="primary" disabled={busy || !form.title.trim() || !form.workspaceId} onClick={onSave}><Save size={14} />{busy ? '保存中' : '保存修改'}</button></div>
+    <div className="modal-actions"><button onClick={onCancel}><X size={14} />{t('common.cancel')}</button><button className="primary" disabled={busy || !form.title.trim() || !form.workspaceId} onClick={onSave}><Save size={14} />{busy ? t('pages.tasks.string_68') : t('pages.tasks.string_69')}</button></div>
   </div>;
 }
 
@@ -388,30 +392,32 @@ function TaskFormFields({ form, workspaces, scenarios, onChange }: {
   scenarios: Scenario[];
   onChange: (form: TaskForm) => void;
 }) {
+  const { t } = useTranslation();
   return <div className="run-form-grid task-form-grid">
-    <label>任务标题<input placeholder="例如：回归测试案例 A / Excel 异常分析" value={form.title} onChange={(event) => onChange({ ...form, title: event.target.value })} /></label>
-    <label>优先级<ThemedSelect value={form.priority} onChange={(event) => onChange({ ...form, priority: event.target.value })}>{['p0', 'p1', 'p2', 'p3'].map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</ThemedSelect></label>
-    <label>关联的隔离空间<ThemedSelect value={form.workspaceId} onChange={(event) => onChange({ ...form, workspaceId: event.target.value })}>
-      <option value="">请选择评测空间</option>
+    <label>{t('pages.tasks.string_34')}<input placeholder={t('pages.tasks.string_3')} value={form.title} onChange={(event) => onChange({ ...form, title: event.target.value })} /></label>
+    <label>{t('pages.tasks.string_35')}<ThemedSelect value={form.priority} onChange={(event) => onChange({ ...form, priority: event.target.value })}>{['p0', 'p1', 'p2', 'p3'].map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</ThemedSelect></label>
+    <label>{t('pages.tasks.string_36')}<ThemedSelect value={form.workspaceId} onChange={(event) => onChange({ ...form, workspaceId: event.target.value })}>
+      <option value="">{t('pages.tasks.string_37')}</option>
       {workspaces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-    </ThemedSelect><em>决定 Agent 运行时的输入目录、产物目录和默认模型。</em></label>
-    <label>评测场景模板<ThemedSelect value={form.scenarioTemplateId} onChange={(event) => onChange({ ...form, scenarioTemplateId: event.target.value })}>
-      <option value="">不绑定场景模板</option>
+    </ThemedSelect><em>{t('pages.tasks.string_38')}</em></label>
+    <label>{t('pages.tasks.string_39')}<ThemedSelect value={form.scenarioTemplateId} onChange={(event) => onChange({ ...form, scenarioTemplateId: event.target.value })}>
+      <option value="">{t('pages.tasks.string_40')}</option>
       {scenarios.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-    </ThemedSelect><em>场景模板会提供默认 Skill、工具约束和 Preflight/Postflight 断言。</em></label>
-    <label className="wide">任务描述<input placeholder="说明本任务想验证的 Agent 能力和验收口径" value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} /></label>
-    <label className="wide">评测提示词 (Message)<textarea rows={4} placeholder="请输入评测输入消息，例如：分析客户清单，识别异常并给出营销建议。" value={form.message} onChange={(event) => onChange({ ...form, message: event.target.value })} /></label>
-    <label className="wide">输入文件路径 (Input Files)<textarea rows={3} placeholder="请输入评测空间下的相对路径，支持每行一个文件，例如：&#10;input/customer_data.xlsx&#10;input/sample.csv" value={form.inputFiles} onChange={(event) => onChange({ ...form, inputFiles: event.target.value })} /></label>
+    </ThemedSelect><em>{t('pages.tasks.string_41')}</em></label>
+    <label className="wide">{t('pages.tasks.string_42')}<input placeholder={t('pages.tasks.string_4')} value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} /></label>
+    <label className="wide">{t('pages.tasks.string_43')}<textarea rows={4} placeholder={t('pages.tasks.string_5')} value={form.message} onChange={(event) => onChange({ ...form, message: event.target.value })} /></label>
+    <label className="wide">{t('pages.tasks.string_44')}<textarea rows={3} placeholder={t('pages.tasks.string_6')} value={form.inputFiles} onChange={(event) => onChange({ ...form, inputFiles: event.target.value })} /></label>
   </div>;
 }
 
 function CheckResultPanel({ title, value, score }: { title: string; value: unknown; score?: number | null }) {
+  const { t } = useTranslation();
   const summary = checkResultSummary(value);
   return <div>
     <h3>{title}</h3>
     <div className="check-result-head">
       <StatusBadge status={summary.status} />
-      <span>{summary.checkedAt ?? '尚未执行'}</span>
+      <span>{summary.checkedAt ?? t('pages.tasks.string_70')}</span>
       {score != null && <b>Score {score}</b>}
     </div>
     {summary.checks.length ? <div className="check-result-grid">{summary.checks.map((check, index) => <article key={`${check.id}-${index}`} className={`check-card check-${check.status}`}>

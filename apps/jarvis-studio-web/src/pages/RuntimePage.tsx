@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ThemedSelect } from "../components/ThemedSelect.tsx";
 import { ArrowUpRight, Bot, Braces, Cable, Cpu, FileSpreadsheet, Play, Radio, Server, TerminalSquare } from 'lucide-react';
@@ -16,12 +17,13 @@ interface Capability {
 interface TraceEvent { eventId: string; eventType: string; timestamp: string; runId?: string; payload: Record<string, unknown> }
 
 export function RuntimePage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const linkedWorkspaceId = searchParams.get('workspaceId') ?? '';
   const [skill, setSkill] = useState('excel-data-analysis');
   const [providerId, setProviderId] = useState('builtin-deterministic');
   const [model, setModel] = useState('deterministic-local');
-  const [message, setMessage] = useState('分析客户清单，识别异常并给出营销建议。');
+  const [message, setMessage] = useState(t('pages.runtime.string_13'));
   const [files, setFiles] = useState('input/customer_data.xlsx');
   const [events, setEvents] = useState<TraceEvent[]>([]);
   const [selected, setSelected] = useState<TraceEvent>();
@@ -80,11 +82,11 @@ export function RuntimePage() {
       sseRef.current = source;
       source.onmessage = (event) => {
         try {
-          const trace = parseJsonWithSchema(event.data, traceEventSchema, 'Runtime 事件结构与前端契约不匹配') as TraceEvent;
+          const trace = parseJsonWithSchema(event.data, traceEventSchema, t('pages.runtime.string_14')) as TraceEvent;
           setEvents((items) => items.some((item) => item.eventId === trace.eventId) ? items : [...items, trace]);
           setSelected((item) => item ?? trace);
         } catch (caught) {
-          setError(caught instanceof Error ? caught.message : 'Runtime 事件解析失败');
+          setError(caught instanceof Error ? caught.message : t('pages.runtime.string_15'));
         }
       };
       source.addEventListener('complete', () => {
@@ -98,36 +100,36 @@ export function RuntimePage() {
         setRunning(false);
       };
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Runtime 启动失败'); setRunning(false);
+      setError(caught instanceof Error ? caught.message : t('pages.runtime.string_16')); setRunning(false);
     }
   };
   return <section>
-    <PageHeader eyebrow="00 / Live Runtime via RuntimeAdapter" title="Agent Runtime 验证控制台" description="Studio 通过 RuntimeAdapter 调用本地 Agent Runtime，并实时观察 Context、LLM、Tool 和运行产物 Trace；这里用于验证和观测，不是正式任务入口。"
-      actions={<button className="primary" disabled={running || !capability} onClick={() => void start()}><Play size={15} />{running ? 'Runtime 执行中' : '启动测试 Run'}</button>} />
+    <PageHeader eyebrow="00 / Live Runtime via RuntimeAdapter" title={t('pages.runtime.string_1')} description={t('pages.runtime.string_2')}
+      actions={<button className="primary" disabled={running || !capability} onClick={() => void start()}><Play size={15} />{running ? t('pages.runtime.string_17') : t('pages.runtime.string_18')}</button>} />
     {(capabilityResource.error || error) && <div className="notice warning">{capabilityResource.error || error}</div>}
     {linkedWorkspaceId && <div className="notice">已从评测空间接收 workspaceId：{linkedWorkspaceId}。当前实时运行使用 RuntimeAdapter 工作目录；如需持久化评测结果，请在测试任务中启动。</div>}
     <div className="runtime-layout">
       <div className="panel runtime-config">
-        <div className="panel-title"><Bot size={15} />运行配置 <span>{capability?.version ?? '加载中'}</span></div>
-        <label>技能 (Skill)<ThemedSelect value={skill} onChange={(event) => selectSkill(event.target.value)}>{capability?.skills.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.version}</option>)}</ThemedSelect></label>
-        <label>模型服务商 (Model Provider)<ThemedSelect value={providerId} onChange={(event) => { const value = event.target.value; setProviderId(value); setModel(capability?.providers.find((item) => item.id === value)?.model ?? ''); }}>{capability?.providers.map((item) => <option value={item.id} key={item.id}>{item.label} · {item.source}{item.isDefault ? ' · 默认' : ''}</option>)}</ThemedSelect></label>
-        <label>模型 (Model)<input value={model} onChange={(event) => setModel(event.target.value)} /></label>
-        <div className="runtime-provider"><Server size={13} /><div><strong>{currentProvider?.label ?? '未选择服务商'}</strong><span>{currentProvider?.provider} · {currentProvider?.lastTestStatus ?? '未测试'}</span></div><Link to="/providers">配置服务商 <ArrowUpRight size={11} /></Link></div>
-        <label>测试任务输入 (Test Task Input)<textarea rows={6} value={message} onChange={(event) => setMessage(event.target.value)} /></label>
-        <label>文件 / 评测空间相对路径<textarea rows={3} value={files} onChange={(event) => setFiles(event.target.value)} /></label>
+        <div className="panel-title"><Bot size={15} />{t('pages.runtime.string_3')}<span>{capability?.version ?? t('pages.runtime.string_19')}</span></div>
+        <label>{t('pages.runtime.string_4')}<ThemedSelect value={skill} onChange={(event) => selectSkill(event.target.value)}>{capability?.skills.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.version}</option>)}</ThemedSelect></label>
+        <label>{t('pages.runtime.string_5')}<ThemedSelect value={providerId} onChange={(event) => { const value = event.target.value; setProviderId(value); setModel(capability?.providers.find((item) => item.id === value)?.model ?? ''); }}>{capability?.providers.map((item) => <option value={item.id} key={item.id}>{item.label} · {item.source}{item.isDefault ? t('pages.runtime.string_20') : ''}</option>)}</ThemedSelect></label>
+        <label>{t('pages.runtime.string_6')}<input value={model} onChange={(event) => setModel(event.target.value)} /></label>
+        <div className="runtime-provider"><Server size={13} /><div><strong>{currentProvider?.label ?? t('pages.runtime.string_21')}</strong><span>{currentProvider?.provider} · {currentProvider?.lastTestStatus ?? t('pages.runtime.string_22')}</span></div><Link to="/providers">{t('pages.runtime.string_7')}<ArrowUpRight size={11} /></Link></div>
+        <label>{t('pages.runtime.string_8')}<textarea rows={6} value={message} onChange={(event) => setMessage(event.target.value)} /></label>
+        <label>{t('pages.runtime.string_9')}<textarea rows={3} value={files} onChange={(event) => setFiles(event.target.value)} /></label>
         <div className="skill-contract"><span><Cable size={13} />{currentSkill?.id}@{currentSkill?.version}</span><p>{currentSkill?.description}</p><div>{currentSkill?.requiredTools.map((tool) => <b key={tool}>{tool}</b>)}</div></div>
       </div>
       <div className="runtime-stream">
         <div className="metric-grid compact">
           <Metric label="LIVE EVENTS" value={events.length} tone="cyan" /><Metric label="CONTEXT SNAPSHOTS" value={contextCount} />
-          <Metric label="TOOL CALLS" value={toolNames.length} tone="amber" /><Metric label="STATUS" value={running ? '运行中' : events.length ? '完成' : '就绪'} tone={running ? 'amber' : 'green'} />
+          <Metric label="TOOL CALLS" value={toolNames.length} tone="amber" /><Metric label="STATUS" value={running ? t('common.running') : events.length ? t('pages.runtime.string_23') : t('pages.runtime.string_24')} tone={running ? 'amber' : 'green'} />
           <Metric label="RUN" value={runId ? runId.slice(0, 13) : '—'} />
         </div>
-        <div className="panel live-panel"><div className="panel-title"><Radio size={15} />实时 Trace 事件 <span>{running ? '流式接收中' : '已稳定'}</span>{runId && !running && <Link to={`/runs/${runId}`}>打开完整 Trace <ArrowUpRight size={12} /></Link>}</div>
+        <div className="panel live-panel"><div className="panel-title"><Radio size={15} />{t('pages.runtime.string_10')}<span>{running ? t('pages.runtime.string_25') : t('pages.runtime.string_26')}</span>{runId && !running && <Link to={`/runs/${runId}`}>{t('pages.runtime.string_11')}<ArrowUpRight size={12} /></Link>}</div>
           <div className="live-event-layout"><div className="live-event-list">{events.map((event) => <button key={event.eventId} className={selected?.eventId === event.eventId ? 'active' : ''} onClick={() => setSelected(event)}>
             {event.eventType === 'tool.call' ? <TerminalSquare size={13} /> : event.eventType === 'context.build' ? <Braces size={13} /> : event.eventType === 'llm.call' ? <Cpu size={13} /> : event.eventType === 'artifact.write' ? <FileSpreadsheet size={13} /> : <Radio size={13} />}
             <div><strong>{String(event.payload.name ?? event.eventType)}</strong><span>{event.eventType}</span></div><StatusBadge status={event.eventType === 'error' ? 'failed' : 'success'} />
-          </button>)}</div><div className="live-event-detail">{selected ? <><span className="eyebrow">{selected.eventType}</span><h2>{String(selected.payload.name ?? selected.eventType)}</h2><JsonView value={selected.payload} /></> : <p>启动 Run 后，Trace Event 将在此实时出现。</p>}</div></div>
+          </button>)}</div><div className="live-event-detail">{selected ? <><span className="eyebrow">{selected.eventType}</span><h2>{String(selected.payload.name ?? selected.eventType)}</h2><JsonView value={selected.payload} /></> : <p>{t('pages.runtime.string_12')}</p>}</div></div>
         </div>
       </div>
     </div>

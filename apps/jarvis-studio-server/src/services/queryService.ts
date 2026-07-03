@@ -4,11 +4,23 @@ import { all, get, parseJson } from '../db/database.ts';
 export function listRuns(filters: Record<string, unknown> = {}) {
   const clauses: string[] = [];
   const params: SQLInputValue[] = [];
-  for (const [column, key] of [['status', 'status'], ['model', 'model'], ['prompt_version', 'promptVersion']] as const) {
+  for (const [column, key] of [['status', 'status'], ['model', 'model'], ['prompt_version', 'promptVersion'], ['session_id', 'sessionId']] as const) {
     if (typeof filters[key] === 'string' && filters[key]) {
       clauses.push(`r.${column} = ?`);
       params.push(filters[key]);
     }
+  }
+  if (typeof filters.agentId === 'string' && filters.agentId) {
+    clauses.push(`json_extract(r.metadata_json, '$.metadata.agentId') = ?`);
+    params.push(filters.agentId);
+  }
+  if (typeof filters.source === 'string' && filters.source) {
+    clauses.push(`json_extract(r.metadata_json, '$.metadata.source') = ?`);
+    params.push(filters.source);
+  }
+  if (typeof filters.keyword === 'string' && filters.keyword) {
+    clauses.push(`(json_extract(r.metadata_json, '$.metadata.userInput') LIKE ? OR json_extract(r.metadata_json, '$.metadata.finalOutput') LIKE ? OR r.name LIKE ?)`);
+    params.push(`%${filters.keyword}%`, `%${filters.keyword}%`, `%${filters.keyword}%`);
   }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   return all<Record<string, unknown>>(
@@ -21,6 +33,10 @@ export function listRuns(filters: Record<string, unknown> = {}) {
 }
 
 export function normalizeRun(row: Record<string, unknown>) {
+  const metadata = parseJson<Record<string, unknown>>(row.metadata_json, {});
+  const nestedMetadata = metadata.metadata && typeof metadata.metadata === 'object'
+    ? metadata.metadata as Record<string, unknown>
+    : metadata;
   return {
     id: row.id, sessionId: row.session_id, sessionTitle: row.session_title, turnId: row.turn_id,
     name: row.name, status: row.status, model: row.model, modelProvider: row.model_provider,
@@ -30,7 +46,14 @@ export function normalizeRun(row: Record<string, unknown>) {
     latencyMs: row.latency_ms, promptTokens: row.prompt_tokens, completionTokens: row.completion_tokens,
     totalTokens: row.total_tokens, score: row.score, error: row.error,
     toolCallCount: Number(row.tool_call_count ?? 0), artifactCount: Number(row.artifact_count ?? 0),
-    metadata: parseJson(row.metadata_json, {})
+    source: nestedMetadata.source ?? 'runtime',
+    agentId: nestedMetadata.agentId,
+    agentName: nestedMetadata.agentName,
+    promptVersionId: nestedMetadata.promptVersionId ?? nestedMetadata.promptId,
+    promptId: nestedMetadata.promptId,
+    userInput: nestedMetadata.userInput ?? nestedMetadata.userMessage,
+    finalOutput: nestedMetadata.finalOutput,
+    metadata: nestedMetadata
   };
 }
 
@@ -71,4 +94,16 @@ export function listArtifacts(runId: string) {
     id: row.id, runId: row.run_id, turnId: row.turn_id, type: row.type, path: row.path,
     sha256: row.sha256, sizeBytes: row.size_bytes, createdAt: row.created_at
   }));
+}
+
+export function listRawTraceEvents(runId: string) {
+  return all<Record<string, unknown>>(`SELECT * FROM raw_trace_events WHERE run_id=? ORDER BY timestamp`, runId)
+    .map((row) => ({
+      id: row.event_id,
+      eventId: row.event_id,
+      eventType: row.event_type,
+      runId: row.run_id,
+      timestamp: row.timestamp,
+      raw: parseJson(row.raw_json, {})
+    }));
 }

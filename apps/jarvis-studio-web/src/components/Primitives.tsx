@@ -1,103 +1,14 @@
 import type { ReactNode } from 'react';
-
-const statusLabels: Record<string, string> = {
-  success: '成功 (Success)',
-  completed: '完成 (Completed)',
-  failed: '失败 (Failed)',
-  error: '错误 (Error)',
-  running: '运行中 (Running)',
-  created: '已创建 (Created)',
-  scoring: '评分中 (Scoring)',
-  cancelled: '已取消 (Cancelled)',
-  improved: '改善 (Improved)',
-  regressed: '退步 (Regressed)',
-  changed: '有变化 (Changed)',
-  unchanged: '持平 (Unchanged)',
-  unmatched: '未匹配 (Unmatched)',
-  p0: 'P0',
-  p1: 'P1',
-  p2: 'P2',
-  p3: 'P3',
-  enabled: '启用 (Enabled)',
-  disabled: '停用 (Disabled)',
-  deprecated: '弃用 (Deprecated)',
-  low: '低风险',
-  medium: '中风险',
-  high: '高风险',
-  critical: '严重风险',
-  allow: '允许 (Allow)',
-  approve: '审批 (Approve)',
-  deny: '拒绝 (Deny)',
-  open: '待处理',
-  investigating: '调查中',
-  fixed: '已修复',
-  ignored: '已忽略',
-  healthy: '健康',
-  draft: '草稿',
-  ready: '就绪',
-  waiting_approval: '等待审批',
-  accepted: '已采纳',
-  archived: '已归档',
-  pending: '待审批',
-  approved: '已批准',
-  approved_with_changes: '带修改批准',
-  rejected: '已拒绝',
-  passed: '通过',
-  warning: '警告'
-};
-
-const metricLabels: Record<string, string> = {
-  DATASETS: '数据集 (Datasets)',
-  'VERSIONED CASES': '用例 (Cases)',
-  'EVAL RUNS': '评测运行 (Eval Runs)',
-  'LATEST PASS RATE': '最新通过率 (Latest Pass Rate)',
-  'PASS RATE': '通过率 (Pass Rate)',
-  'AVG SCORE': '平均分 (Avg Score)',
-  'AVG LATENCY': '平均耗时 (Avg Latency)',
-  'AVG TOKENS / COST': '平均 Token / 成本',
-  'RUNS CAPTURED': '已捕获运行 (Runs)',
-  'SUCCESS RATE': '成功率 (Success Rate)',
-  'TOKENS OBSERVED': 'Token 总量',
-  MODEL: '模型 (Model)',
-  PROMPT: 'Prompt 版本',
-  LATENCY: '耗时 (Latency)',
-  TOKENS: 'Token',
-  SCORE: '评分 (Score)',
-  'USED TOKENS': '已用 Token',
-  'CONTEXT LIMIT': '上下文上限',
-  UTILIZATION: '利用率 (Utilization)',
-  SEGMENTS: '片段 (Segments)',
-  EXCLUDED: '已排除 (Excluded)',
-  'LIVE EVENTS': '实时事件',
-  'CONTEXT SNAPSHOTS': '上下文快照',
-  'TOOL CALLS': '工具调用',
-  STATUS: '状态 (Status)',
-  RUN: '运行 (Run)',
-  IMPROVED: '改善',
-  REGRESSED: '退步',
-  UNCHANGED: '持平',
-  'NEW FAILURES': '新增失败',
-  'TOTAL COST': '总成本',
-  'PROVIDER PROFILES': '服务商配置',
-  'REGISTRY MANAGED': '注册表托管',
-  'HEALTHY SIGNALS': '健康连接',
-  'ENCRYPTED KEYS': '已加密密钥',
-  SKILLS: 'Skills',
-  TOOLS: 'Tools',
-  'OPEN FAILURES': '待处理 Failure',
-  'PENDING APPROVALS': '待审批',
-  'DENIED CALLS': '已拒绝调用',
-  SNAPSHOTS: '回放快照',
-  EXPERIMENTS: '实验矩阵',
-  'AVG OUTPUT TOKENS': '平均输出 Token'
-};
+import { useTranslation } from 'react-i18next';
 
 export function StatusBadge({ status }: { status: string }) {
-  return <span className={`status status-${status}`}>{statusLabels[status] ?? status}</span>;
+  const { t } = useTranslation();
+  return <span className={`status status-${status}`}>{t(`status.${status}`, { defaultValue: status })}</span>;
 }
 
 export function Metric({ label, value, tone = 'default' }: { label: string; value: ReactNode; tone?: string }) {
-  return <div className={`metric metric-${tone}`}><span>{metricLabels[label] ?? label}</span><strong>{value}</strong></div>;
+  const { t } = useTranslation();
+  return <div className={`metric metric-${tone}`}><span>{t(`metric.${label}`, { defaultValue: label })}</span><strong>{value}</strong></div>;
 }
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow: string; title: string; description: string; actions?: ReactNode }) {
@@ -108,7 +19,8 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow: 
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="empty"><span>暂无数据 (No signal)</span><p>{children}</p></div>;
+  const { t } = useTranslation();
+  return <div className="empty"><span>{t('common.noData')}</span><p>{children}</p></div>;
 }
 
 export function JsonView({ value }: { value: unknown }) {
@@ -116,7 +28,8 @@ export function JsonView({ value }: { value: unknown }) {
 }
 
 export function Loading() {
-  return <div className="loading"><i /><span>正在同步观测数据</span><Skeleton rows={3} /></div>;
+  const { t } = useTranslation();
+  return <div className="loading"><i /><span>{t('common.loading')}</span><Skeleton rows={3} /></div>;
 }
 
 export function Skeleton({ rows = 4 }: { rows?: number }) {

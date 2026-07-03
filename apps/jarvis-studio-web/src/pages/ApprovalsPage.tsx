@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, LockKeyhole, ShieldAlert, X } from 'lucide-react';
 import { api, post } from '../api.ts';
@@ -24,6 +25,7 @@ interface Approval {
 }
 
 export function ApprovalsPage() {
+  const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState('');
   const [note, setNote] = useState('');
   const load = useCallback((signal: AbortSignal) => api<Approval[]>('/api/approvals', { signal }), []);
@@ -41,7 +43,7 @@ export function ApprovalsPage() {
   };
   if (!items) return <Loading />;
   return <section>
-    <PageHeader eyebrow="V0.5 / Runtime Approval" title="运行审批" description="处理 Agent Runtime 在测试运行中产生的高风险工具请求。Studio 记录审批人、意见、关联测试任务、Run 和参数摘要，并将决策交回 RuntimeAdapter。" />
+    <PageHeader eyebrow="V0.5 / Runtime Approval" title={t('pages.approvals.string_1')} description={t('pages.approvals.string_2')} />
     {resource.error && <div className="notice warning">{resource.error}</div>}
     <div className="metric-grid compact">
       <Metric label="PENDING RUNTIME APPROVALS" value={items.filter((item) => item.status === 'pending').length} tone="amber" />
@@ -50,9 +52,9 @@ export function ApprovalsPage() {
       <Metric label="TOOL CALLS" value={items.length} />
       <Metric label="STATUS" value="approval-v0.5" />
     </div>
-    {items.length === 0 ? <Empty>尚未产生运行审批请求。高风险工具如 patch.apply、shell.safe_run 会进入这里。</Empty> : <div className="approval-layout">
+    {items.length === 0 ? <Empty>{t('pages.approvals.string_4')}</Empty> : <div className="approval-layout">
       <div className="panel registry-list">
-        <div className="panel-title"><LockKeyhole size={15} />运行审批队列 <span>{items.length}</span></div>
+        <div className="panel-title"><LockKeyhole size={15} />{t('pages.approvals.string_5')}<span>{items.length}</span></div>
         {items.map((item) => <button key={item.id} className={selected?.id === item.id ? 'active' : ''} onClick={() => setSelectedId(item.id)}>
           <StatusBadge status={item.status} />
           <div><strong>{item.requestedAction ?? item.actionType ?? 'tool_call'}</strong><span>{item.riskLevel ?? 'unknown'} · {formatDate(item.createdAt)}</span><p>{item.reason}</p></div>
@@ -66,18 +68,18 @@ export function ApprovalsPage() {
           <StatusBadge status={selected.status} />
         </div>
         <div className="provider-actions">
-          <button className="primary" disabled={selected.status !== 'pending'} onClick={() => void decide('approve')}><Check size={14} />批准</button>
-          <button disabled={selected.status !== 'pending'} onClick={() => void decide('approve-with-changes')}>带修改批准</button>
-          <button className="danger" disabled={selected.status !== 'pending'} onClick={() => void decide('reject')}><X size={14} />拒绝</button>
+          <button className="primary" disabled={selected.status !== 'pending'} onClick={() => void decide('approve')}><Check size={14} />{t('pages.approvals.string_6')}</button>
+          <button disabled={selected.status !== 'pending'} onClick={() => void decide('approve-with-changes')}>{t('pages.approvals.string_7')}</button>
+          <button className="danger" disabled={selected.status !== 'pending'} onClick={() => void decide('reject')}><X size={14} />{t('pages.approvals.string_8')}</button>
         </div>
-        <textarea rows={3} placeholder="运行审批意见 / 修改说明" value={note} onChange={(event) => setNote(event.target.value)} />
+        <textarea rows={3} placeholder={t('pages.approvals.string_3')} value={note} onChange={(event) => setNote(event.target.value)} />
         <div className="registry-facts">
           <span>Eval Workspace<b>{selected.workspaceId}</b></span>
           <span>Test Task<b>{selected.taskId ?? '—'}</b></span>
           <span>Run<b>{selected.runId ?? '—'}</b></span>
           <span>Tool Call<b>{selected.toolCallId ?? '—'}</b></span>
         </div>
-        <h3>参数摘要</h3>
+        <h3>{t('pages.approvals.string_9')}</h3>
         <JsonView value={{ args: selected.args, decisionNote: selected.decisionNote, approvedBy: selected.approvedBy, decidedAt: selected.decidedAt }} />
       </div>}
     </div>}

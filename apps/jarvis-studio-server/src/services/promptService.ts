@@ -19,7 +19,11 @@ export interface PromptInput {
   outputSchema?: unknown;
   toolPolicy?: unknown;
   successCriteria?: unknown;
+  failureCriteria?: unknown;
+  variablesSchema?: unknown;
   riskNotes?: string;
+  tags?: string[];
+  createdFromRunId?: string;
 }
 
 let promptOpsSchemaEnsured = false;
@@ -39,7 +43,12 @@ function ensurePromptOpsSchema() {
   add('output_schema_json', `ALTER TABLE prompts ADD COLUMN output_schema_json TEXT`);
   add('tool_policy_json', `ALTER TABLE prompts ADD COLUMN tool_policy_json TEXT`);
   add('success_criteria_json', `ALTER TABLE prompts ADD COLUMN success_criteria_json TEXT`);
+  add('failure_criteria_json', `ALTER TABLE prompts ADD COLUMN failure_criteria_json TEXT`);
+  add('variables_schema_json', `ALTER TABLE prompts ADD COLUMN variables_schema_json TEXT`);
   add('risk_notes', `ALTER TABLE prompts ADD COLUMN risk_notes TEXT`);
+  add('tags_json', `ALTER TABLE prompts ADD COLUMN tags_json TEXT`);
+  add('created_from_run_id', `ALTER TABLE prompts ADD COLUMN created_from_run_id TEXT`);
+  add('published_at', `ALTER TABLE prompts ADD COLUMN published_at TEXT`);
   add('updated_at', `ALTER TABLE prompts ADD COLUMN updated_at TEXT`);
   run(`CREATE INDEX IF NOT EXISTS idx_prompts_agent ON prompts(agent_id, status, created_at DESC)`);
   run(`UPDATE prompts SET status='draft' WHERE status IS NULL`);
@@ -68,6 +77,17 @@ export function getPrompt(id: string) {
   const row = get<Record<string, unknown>>(`SELECT * FROM prompts WHERE id=?`, id);
   return row ? normalize(row) : undefined;
 }
+
+export function listPromptVersions(promptId: string) {
+  ensurePromptOpsSchema();
+  const prompt = getPrompt(promptId);
+  if (!prompt) throw new Error('Prompt 不存在');
+  return all<Record<string, unknown>>(
+    `SELECT * FROM prompts WHERE name=? AND COALESCE(agent_id, '')=COALESCE(?, '') ORDER BY created_at DESC`,
+    String(prompt.name),
+    prompt.agentId ? String(prompt.agentId) : ''
+  ).map(normalize);
+}
 function normalize(row: Record<string, unknown>) {
   const content = String(row.content ?? '');
   return {
@@ -87,9 +107,14 @@ function normalize(row: Record<string, unknown>) {
     outputSchema: parseJson(row.output_schema_json, {}),
     toolPolicy: parseJson(row.tool_policy_json, {}),
     successCriteria: parseJson(row.success_criteria_json, {}),
+    failureCriteria: parseJson(row.failure_criteria_json, {}),
+    variablesSchema: parseJson(row.variables_schema_json, []),
     riskNotes: row.risk_notes,
+    tags: parseJson(row.tags_json, []),
+    createdFromRunId: row.created_from_run_id,
     createdAt: row.created_at,
-    updatedAt: row.updated_at ?? row.created_at
+    updatedAt: row.updated_at ?? row.created_at,
+    publishedAt: row.published_at
   };
 }
 
@@ -108,7 +133,7 @@ function hasStructuredPromptInput(input: Partial<PromptInput>) {
 
 export function createPrompt(input: PromptInput) {
   ensurePromptOpsSchema();
-  const id = randomUUID();
+  const id = `prompt_${randomUUID()}`;
   const version = input.version ?? 'v0.1';
   const now = new Date().toISOString();
   const content = composePrompt(input);
@@ -117,8 +142,9 @@ export function createPrompt(input: PromptInput) {
   run(`INSERT INTO prompts (
     id, name, version, content, variables_json, linked_skill, changelog, created_at,
     agent_id, status, prompt_type, system_prompt, developer_prompt, user_template,
-    output_schema_json, tool_policy_json, success_criteria_json, risk_notes, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    output_schema_json, tool_policy_json, success_criteria_json, failure_criteria_json,
+    variables_schema_json, risk_notes, tags_json, created_from_run_id, updated_at, published_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.name,
     version,
@@ -136,10 +162,60 @@ export function createPrompt(input: PromptInput) {
     json(input.outputSchema ?? {}),
     json(input.toolPolicy ?? {}),
     json(input.successCriteria ?? {}),
+    json(input.failureCriteria ?? {}),
+    json(input.variablesSchema ?? []),
     input.riskNotes ?? null,
-    now
+    json(input.tags ?? []),
+    input.createdFromRunId ?? null,
+    now,
+    status === 'active' ? now : null
   );
-  if (status === 'active' && input.agentId) updateAgent(input.agentId, { defaultPromptId: id });
+  if (status === 'active' && input.agentId) updateAgent(input.agentId, { defaultPromptVersionId: id });
+  return getPrompt(id);
+}
+
+export function updatePrompt(id: string, input: Partial<PromptInput>) {
+  ensurePromptOpsSchema();
+  const current = getPrompt(id);
+  if (!current) throw new Error('Prompt 不存在');
+  if (current.status === 'active' && hasStructuredPromptInput(input)) {
+    throw new Error('Active Prompt 默认只读，请复制为新版本后修改');
+  }
+  const now = new Date().toISOString();
+  const content = composePrompt({
+    content: input.content ?? current.content as string,
+    systemPrompt: input.systemPrompt ?? current.systemPrompt as string | undefined,
+    developerPrompt: input.developerPrompt ?? current.developerPrompt as string | undefined,
+    userTemplate: input.userTemplate ?? current.userTemplate as string | undefined
+  });
+  run(`UPDATE prompts SET name=?, version=?, content=?, variables_json=?, linked_skill=?,
+    changelog=?, agent_id=?, status=?, prompt_type=?, system_prompt=?, developer_prompt=?,
+    user_template=?, output_schema_json=?, tool_policy_json=?, success_criteria_json=?,
+    failure_criteria_json=?, variables_schema_json=?, risk_notes=?, tags_json=?,
+    created_from_run_id=?, updated_at=? WHERE id=?`,
+    String(input.name ?? current.name),
+    String(input.version ?? current.version),
+    content,
+    json(extractVariables(content)),
+    (input.linkedSkill ?? current.linkedSkill ?? null) as string | null,
+    (input.changelog ?? current.changelog ?? null) as string | null,
+    (input.agentId ?? current.agentId ?? null) as string | null,
+    String(input.status ?? current.status ?? 'draft'),
+    String(input.promptType ?? current.promptType ?? 'mixed'),
+    String(input.systemPrompt ?? current.systemPrompt ?? content),
+    (input.developerPrompt ?? current.developerPrompt ?? null) as string | null,
+    (input.userTemplate ?? current.userTemplate ?? null) as string | null,
+    json(input.outputSchema ?? current.outputSchema ?? {}),
+    json(input.toolPolicy ?? current.toolPolicy ?? {}),
+    json(input.successCriteria ?? current.successCriteria ?? {}),
+    json(input.failureCriteria ?? current.failureCriteria ?? {}),
+    json(input.variablesSchema ?? current.variablesSchema ?? []),
+    (input.riskNotes ?? current.riskNotes ?? null) as string | null,
+    json(input.tags ?? current.tags ?? []),
+    (input.createdFromRunId ?? current.createdFromRunId ?? null) as string | null,
+    now,
+    id
+  );
   return getPrompt(id);
 }
 
@@ -171,6 +247,8 @@ export function createPromptVersion(sourceId: string, input: Partial<PromptInput
     outputSchema: input.outputSchema ?? source.outputSchema,
     toolPolicy: input.toolPolicy ?? source.toolPolicy,
     successCriteria: input.successCriteria ?? source.successCriteria,
+    failureCriteria: input.failureCriteria ?? source.failureCriteria,
+    variablesSchema: input.variablesSchema ?? source.variablesSchema,
     riskNotes: input.riskNotes ?? source.riskNotes as string | undefined
   });
 }
@@ -181,8 +259,8 @@ export function activatePrompt(id: string) {
   if (!prompt) throw new Error('Prompt 不存在');
   const now = new Date().toISOString();
   if (prompt.agentId) setAgentPromptsInactive(String(prompt.agentId), String(prompt.name));
-  run(`UPDATE prompts SET status='active', updated_at=? WHERE id=?`, now, id);
-  if (prompt.agentId) updateAgent(String(prompt.agentId), { defaultPromptId: id });
+  run(`UPDATE prompts SET status='active', updated_at=?, published_at=? WHERE id=?`, now, now, id);
+  if (prompt.agentId) updateAgent(String(prompt.agentId), { defaultPromptVersionId: id });
   return getPrompt(id);
 }
 
@@ -192,6 +270,23 @@ export function archivePrompt(id: string) {
   if (!prompt) throw new Error('Prompt 不存在');
   run(`UPDATE prompts SET status='archived', updated_at=? WHERE id=?`, new Date().toISOString(), id);
   return getPrompt(id);
+}
+
+export function comparePromptVersions(leftId: string, rightId: string) {
+  const left = getPrompt(leftId);
+  const right = getPrompt(rightId);
+  if (!left || !right) throw new Error('Prompt 版本不存在');
+  const fields = ['systemPrompt', 'developerPrompt', 'userTemplate', 'variablesSchema', 'toolPolicy', 'outputSchema', 'successCriteria', 'failureCriteria'] as const;
+  return {
+    left,
+    right,
+    diffs: fields.map((field) => ({
+      field,
+      left: left[field],
+      right: right[field],
+      changed: JSON.stringify(left[field] ?? null) !== JSON.stringify(right[field] ?? null)
+    }))
+  };
 }
 
 export function testPrompt(id: string, variables: Record<string, string>, inputMessage: string, options: Record<string, unknown> = {}) {
@@ -205,16 +300,49 @@ export function testPrompt(id: string, variables: Record<string, string>, inputM
   const contextId = `ctx_${randomUUID()}`;
   const finalVariables = { input: inputMessage, ...variables };
   const rendered = renderPrompt(prompt.content as string, finalVariables);
+  const promptSnapshot = {
+    id: prompt.id,
+    agentId: prompt.agentId,
+    name: prompt.name,
+    version: prompt.version,
+    status: prompt.status,
+    systemPrompt: prompt.systemPrompt,
+    developerPrompt: prompt.developerPrompt,
+    userTemplate: prompt.userTemplate,
+    variables,
+    renderedPrompt: rendered,
+    toolPolicy: prompt.toolPolicy,
+    outputSchema: prompt.outputSchema,
+    successCriteria: prompt.successCriteria,
+    failureCriteria: prompt.failureCriteria,
+    riskNotes: prompt.riskNotes
+  };
   const response = `Playground Runtime 已完成模拟运行。\n\nAgent：${agent?.name ?? '未绑定'}\nPrompt：${prompt.name}@${prompt.version}\n输入：${inputMessage}\n\n下一步可进入 Trace 查看 Prompt 快照、LLM Call 与 Run 元数据。`;
   const promptTokens = Math.ceil(rendered.length / 4);
   const completionTokens = Math.ceil(response.length / 4);
+  const source = typeof options.source === 'string' ? options.source : 'playground';
+  const runMetadata = {
+    source,
+    agentId: prompt.agentId,
+    agentName: agent?.name,
+    promptId: prompt.id,
+    promptVersionId: prompt.id,
+    promptStatus: prompt.status,
+    userInput: inputMessage,
+    finalOutput: response,
+    promptSnapshot,
+    toolPolicy: prompt.toolPolicy,
+    outputSchema: prompt.outputSchema,
+    successCriteria: prompt.successCriteria
+  };
   const events = [
-    { eventId: randomUUID(), eventType: 'run.start', timestamp: now.toISOString(), sessionId, runId, payload: { name: `Playground · ${agent?.name ?? prompt.name}`, model: options.modelName ?? 'mock-runtime', modelProvider: options.modelProviderId ?? 'local', promptVersion: `${prompt.name}@${prompt.version}`, runtimeVersion: 'jarvis-studio-playground@0.6.0', metadata: { agentId: prompt.agentId, promptId: prompt.id, promptStatus: prompt.status, toolPolicy: prompt.toolPolicy, outputSchema: prompt.outputSchema, successCriteria: prompt.successCriteria } } },
+    { eventId: randomUUID(), eventType: 'run.start', timestamp: now.toISOString(), sessionId, runId, payload: { name: `Playground · ${agent?.name ?? prompt.name}`, model: options.modelName ?? 'mock-runtime', modelProvider: options.modelProviderId ?? 'local', promptVersion: `${prompt.name}@${prompt.version}`, runtimeVersion: 'jarvis-studio-playground@0.6.0', contextStrategyVersion: options.contextStrategy ?? agent?.defaultContextStrategyId ?? 'balanced-v1', metadata: runMetadata } },
     { eventId: randomUUID(), eventType: 'turn.start', timestamp: new Date(now.getTime() + 10).toISOString(), sessionId, turnId, runId, payload: { index: 1, userMessage: inputMessage } },
+    { eventId: randomUUID(), eventType: 'prompt.render', timestamp: new Date(now.getTime() + 15).toISOString(), sessionId, turnId, runId, spanId: randomUUID(), payload: { name: 'Prompt Loaded', status: 'success', promptVersionId: prompt.id, promptVersion: `${prompt.name}@${prompt.version}`, input: { variables: finalVariables }, output: promptSnapshot } },
     { eventId: randomUUID(), eventType: 'context.build', timestamp: new Date(now.getTime() + 20).toISOString(), sessionId, turnId, runId, spanId: randomUUID(), payload: { contextSnapshotId: contextId, totalTokens: promptTokens, maxContextTokens: 32768, truncated: false, compressed: false, finalPrompt: rendered, segments: [{ id: randomUUID(), type: 'system_prompt', name: `${prompt.name}@${prompt.version}`, version: prompt.version, preview: rendered.slice(0, 500), tokens: promptTokens, included: true }] } },
     { eventId: randomUUID(), eventType: 'llm.call', timestamp: new Date(now.getTime() + 30).toISOString(), sessionId, turnId, runId, spanId: randomUUID(), payload: { model: options.modelName ?? 'mock-runtime', provider: options.modelProviderId ?? 'local', promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, latencyMs: 120, contextSnapshotId: contextId, output: { type: 'text', content: response } } },
     { eventId: randomUUID(), eventType: 'turn.end', timestamp: new Date(now.getTime() + 140).toISOString(), sessionId, turnId, runId, payload: { status: 'success', assistantMessage: response } },
-    { eventId: randomUUID(), eventType: 'run.end', timestamp: new Date(now.getTime() + 150).toISOString(), sessionId, runId, payload: { status: 'success', latencyMs: 150, promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, score: 5, metadata: { agentId: prompt.agentId, promptId: prompt.id } } }
+    { eventId: randomUUID(), eventType: 'run.end', timestamp: new Date(now.getTime() + 150).toISOString(), sessionId, runId, payload: { status: 'success', latencyMs: 150, promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, score: 5, metadata: runMetadata } }
   ];
   importTraceJsonl(events.map((event) => JSON.stringify(event)).join('\n'));
   return { runId, rendered, response, agent, prompt };
