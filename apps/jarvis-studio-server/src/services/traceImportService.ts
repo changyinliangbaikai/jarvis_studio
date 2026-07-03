@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { traceEventSchema, type TraceEvent } from '@jarvis/trace-sdk';
-import { db, json, run } from '../db/database.ts';
+import { db, json, run, get } from '../db/database.ts';
 
 const spanEventTypes = new Set([
   'context.build', 'skill.select', 'prompt.render', 'llm.call', 'llm.stream', 'llm.parse',
+  'llm.request.start', 'llm.usage', 'assistant.message', 'tool.batch.start', 'tool.call.start', 'tool.call.end',
   'permission.check', 'tool.policy.check', 'context.budget.apply', 'context.segment',
   'tool.call', 'tool.result', 'artifact.write', 'memory.retrieve',
   'memory.write', 'eval.score', 'failure.detected', 'replay.snapshot.created',
@@ -17,11 +18,21 @@ function text(value: unknown, fallback = ''): string {
 function num(value: unknown): number | null {
   return typeof value === 'number' ? value : null;
 }
+function firstNum(...values: unknown[]): number | null {
+  for (const value of values) {
+    const parsed = num(value);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+}
 function bool(value: unknown): number {
   return value ? 1 : 0;
 }
 function array(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value) ? value.filter((item) => item && typeof item === 'object') as Array<Record<string, unknown>> : [];
+}
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 function ensureParents(event: TraceEvent) {
@@ -43,6 +54,11 @@ function ensureParents(event: TraceEvent) {
 function mapRun(event: TraceEvent) {
   const p = event.payload;
   if (event.eventType === 'run.start' && event.runId) {
+    if (p.agentId) {
+      const now = event.timestamp;
+      run(`INSERT OR IGNORE INTO agents (id, name, description, status, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?)`,
+        text(p.agentId), text(p.agentName, text(p.agentId)), text(p.agentDescription, ''), now, now);
+    }
     run(`UPDATE runs SET session_id=?, name=?, status='running', model=?, model_provider=?,
       prompt_version=?, skill_versions_json=?, tool_schema_version=?, runtime_version=?,
       context_strategy_version=?, metadata_json=? WHERE id=?`,
@@ -52,14 +68,33 @@ function mapRun(event: TraceEvent) {
       text(p.contextStrategyVersion) || null, json(p), event.runId);
   }
   if (event.eventType === 'run.end' && event.runId) {
+    const stats = object(p.stats);
+    const tokenUsage = object(p.tokenUsage);
     run(`UPDATE runs SET status=?, ended_at=?, latency_ms=?, prompt_tokens=?, completion_tokens=?,
       total_tokens=?, score=COALESCE(?, score), error=?, metadata_json=? WHERE id=?`,
-      text(p.status, 'success'), event.timestamp, num(p.latencyMs), num(p.promptTokens),
-      num(p.completionTokens), num(p.totalTokens), num(p.score), text(p.error) || null, json(p), event.runId);
+      text(p.status, 'success'), event.timestamp, firstNum(p.latencyMs, stats.totalDurationMs),
+      firstNum(p.promptTokens, tokenUsage.promptTokens), firstNum(p.completionTokens, tokenUsage.completionTokens),
+      firstNum(p.totalTokens, tokenUsage.totalTokens), num(p.score), text(p.error) || null, json(p), event.runId);
     if (event.sessionId) {
       run(`UPDATE sessions SET status=?, ended_at=? WHERE id=?`, text(p.status, 'success'), event.timestamp, event.sessionId);
     }
   }
+}
+
+function getAgentIdForRun(runId: string, runToAgent: Map<string, string>): string | null {
+  if (runToAgent.has(runId)) {
+    return runToAgent.get(runId)!;
+  }
+  const row = get<{ metadata_json?: string }>(`SELECT metadata_json FROM runs WHERE id = ?`, runId);
+  if (row?.metadata_json) {
+    try {
+      const meta = JSON.parse(row.metadata_json);
+      if (meta && meta.agentId) {
+        return String(meta.agentId);
+      }
+    } catch (_) {}
+  }
+  return null;
 }
 
 function mapTurn(event: TraceEvent) {
@@ -90,7 +125,7 @@ function mapSpan(event: TraceEvent) {
     text(p.error) || null, json(p));
 }
 
-function mapContext(event: TraceEvent) {
+function mapContext(event: TraceEvent, runToAgent: Map<string, string>) {
   if (event.eventType !== 'context.build' || !event.runId) return;
   const p = event.payload;
   const snapshotId = text(p.contextSnapshotId, `${event.eventId}_context`);
@@ -104,6 +139,9 @@ function mapContext(event: TraceEvent) {
     num(p.totalTokensBeforeBudget), num(p.totalTokensAfterBudget), text(p.budgetStrategy) || null,
     num(p.reservedOutputTokens), json(p.risks ?? []), text(p.finalPromptRef) || null,
     text(p.finalPrompt) || null, event.timestamp);
+
+  const agentId = getAgentIdForRun(event.runId, runToAgent);
+
   for (const segment of array(p.segments)) {
     run(`INSERT OR REPLACE INTO context_segments (
       id, snapshot_id, type, name, version, content_ref, preview, tokens, included, truncated,
@@ -114,6 +152,24 @@ function mapContext(event: TraceEvent) {
       num(segment.tokensAfter) ?? num(segment.tokens) ?? 0, bool(segment.included), bool(segment.truncated), bool(segment.compressed),
       num(segment.priority), text(segment.reason) || null, num(segment.tokensBefore) ?? num(segment.tokens),
       num(segment.tokensAfter) ?? num(segment.tokens), text(segment.action) || null, json(segment));
+
+    if (segment.type === 'system_prompt') {
+      const name = text(segment.name);
+      const version = text(segment.version, '1.0.0');
+      const content = text(segment.preview);
+      if (name && name !== 'system-prompt') {
+        const promptId = `${name}@${version}`;
+        const now = event.timestamp;
+        run(`INSERT OR IGNORE INTO prompts (id, name, version, content, created_at, agent_id, status, system_prompt, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, 'published', ?, ?)`,
+          promptId, name, version, content, now, agentId, content, now);
+
+        if (agentId) {
+          run(`UPDATE agents SET default_prompt_id = ?, default_prompt_version_id = ? WHERE id = ? AND (default_prompt_id IS NULL OR default_prompt_id = '')`,
+            name, promptId, agentId);
+        }
+      }
+    }
   }
 }
 
@@ -184,30 +240,124 @@ function mapReplaySnapshot(event: TraceEvent) {
     json(p.snapshot ?? p), event.timestamp);
 }
 
-function mapLLM(event: TraceEvent) {
-  if (event.eventType !== 'llm.call' || !event.runId) return;
+interface SplitLLMState {
+  request?: TraceEvent;
+  usage?: TraceEvent;
+}
+
+interface SplitToolState {
+  tool?: string;
+  arguments?: unknown;
+}
+
+function splitKey(event: TraceEvent): string {
+  return `${event.runId ?? ''}:${event.spanId ?? ''}`;
+}
+
+function toolKey(runId: string | undefined, toolCallId: string): string {
+  return `${runId ?? ''}:${toolCallId}`;
+}
+
+function mapLLM(event: TraceEvent, splitLLM: Map<string, SplitLLMState>) {
+  if (!event.runId) return;
+  if (event.eventType === 'llm.call') {
+    const p = event.payload;
+    run(`INSERT OR REPLACE INTO llm_calls (
+      id, run_id, turn_id, span_id, model, provider, temperature, max_output_tokens,
+      prompt_tokens, completion_tokens, total_tokens, latency_ms, first_token_latency_ms,
+      prefill_ms, decode_ms, tokens_per_second, context_snapshot_id, input_ref, output_json, cost, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      text(p.llmCallId, event.eventId), event.runId, event.turnId ?? null, event.spanId ?? null,
+      text(p.model, 'unknown'), text(p.provider) || null, num(p.temperature), num(p.maxOutputTokens),
+      num(p.promptTokens), num(p.completionTokens), num(p.totalTokens), num(p.latencyMs),
+      num(p.firstTokenLatencyMs), num(p.prefillMs), num(p.decodeMs), num(p.tokensPerSecond),
+      text(p.contextSnapshotId) || null, text(p.inputRef) || null, json(p.output), num(p.cost), event.timestamp);
+    return;
+  }
+  if (event.eventType !== 'assistant.message') return;
   const p = event.payload;
+  const split = splitLLM.get(splitKey(event));
+  const requestPayload = object(split?.request?.payload);
+  const usagePayload = object(object(split?.usage?.payload).usage);
+  const promptTokens = firstNum(p.promptTokens, usagePayload.promptTokens);
+  const completionTokens = firstNum(p.completionTokens, usagePayload.completionTokens);
+  const totalTokens = firstNum(p.totalTokens, usagePayload.totalTokens,
+    promptTokens !== null && completionTokens !== null ? promptTokens + completionTokens : null);
+  const requestStartedAt = split?.request ? Date.parse(split.request.timestamp) : NaN;
+  const assistantCompletedAt = Date.parse(event.timestamp);
+  const latencyMs = Number.isFinite(requestStartedAt) && Number.isFinite(assistantCompletedAt)
+    ? Math.max(0, assistantCompletedAt - requestStartedAt)
+    : null;
   run(`INSERT OR REPLACE INTO llm_calls (
     id, run_id, turn_id, span_id, model, provider, temperature, max_output_tokens,
     prompt_tokens, completion_tokens, total_tokens, latency_ms, first_token_latency_ms,
     prefill_ms, decode_ms, tokens_per_second, context_snapshot_id, input_ref, output_json, cost, created_at
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    text(p.llmCallId, event.eventId), event.runId, event.turnId ?? null, event.spanId ?? null,
-    text(p.model, 'unknown'), text(p.provider) || null, num(p.temperature), num(p.maxOutputTokens),
-    num(p.promptTokens), num(p.completionTokens), num(p.totalTokens), num(p.latencyMs),
+    text(p.llmCallId) || `llm_${event.spanId ?? event.eventId}`, event.runId, event.turnId ?? null, event.spanId ?? null,
+    text(requestPayload.model, 'unknown'), text(p.provider) || null, num(p.temperature), num(p.maxOutputTokens),
+    promptTokens, completionTokens, totalTokens, latencyMs,
     num(p.firstTokenLatencyMs), num(p.prefillMs), num(p.decodeMs), num(p.tokensPerSecond),
-    text(p.contextSnapshotId) || null, text(p.inputRef) || null, json(p.output), num(p.cost), event.timestamp);
+    text(p.contextSnapshotId) || null, text(p.inputRef) || null, json({
+      type: num(p.toolCallCount) && Number(p.toolCallCount) > 0 ? 'tool_call' : 'text',
+      content: p.content,
+      reasoning: p.reasoning,
+      finishReason: p.finishReason,
+      toolCallCount: p.toolCallCount
+    }), num(p.cost), event.timestamp);
 }
 
-function mapTool(event: TraceEvent) {
-  if (event.eventType !== 'tool.call' || !event.runId) return;
+function mapTool(event: TraceEvent, splitTools: Map<string, SplitToolState>) {
+  if (!event.runId) return;
+  if (event.eventType !== 'tool.call' && event.eventType !== 'tool.call.end') return;
   const p = event.payload;
-  const execution = (p.execution ?? {}) as Record<string, unknown>;
+  const toolCallId = text(p.toolCallId, event.eventId);
+  const split = splitTools.get(toolKey(event.runId, toolCallId));
+  const execution = event.eventType === 'tool.call.end'
+    ? { latencyMs: p.latencyMs, success: p.success, exitCode: p.success ? 0 : 1 }
+    : object(p.execution);
   run(`INSERT OR REPLACE INTO tool_calls VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    text(p.toolCallId, event.eventId), event.runId, event.turnId ?? null, event.spanId ?? null,
-    text(p.tool, 'unknown'), text(p.reason) || null, json(p.arguments), json(p.permission),
+    toolCallId, event.runId, event.turnId ?? null, event.spanId ?? null,
+    text(p.tool) || split?.tool || 'unknown', text(p.reason) || null, json(p.arguments ?? split?.arguments ?? {}), json(p.permission),
     num(execution.latencyMs), bool(execution.success), num(execution.exitCode), text(p.stdoutRef) || null,
-    text(p.stderrRef) || null, json(p.result), json(p.contextInjection), event.timestamp);
+    text(p.stderrRef) || null, json(p.result ?? p.output ?? p.error), json(p.contextInjection), event.timestamp);
+}
+
+function buildSplitLLMIndex(events: TraceEvent[]): Map<string, SplitLLMState> {
+  const result = new Map<string, SplitLLMState>();
+  for (const event of events) {
+    if (!event.runId || !event.spanId) continue;
+    if (event.eventType !== 'llm.request.start' && event.eventType !== 'llm.usage') continue;
+    const key = splitKey(event);
+    const current = result.get(key) ?? {};
+    if (event.eventType === 'llm.request.start') current.request = event;
+    if (event.eventType === 'llm.usage') current.usage = event;
+    result.set(key, current);
+  }
+  return result;
+}
+
+function buildSplitToolIndex(events: TraceEvent[]): Map<string, SplitToolState> {
+  const result = new Map<string, SplitToolState>();
+  for (const event of events) {
+    if (!event.runId) continue;
+    if (event.eventType === 'tool.batch.start') {
+      for (const toolCall of array(event.payload.toolCalls)) {
+        const id = text(toolCall.id);
+        if (!id) continue;
+        result.set(toolKey(event.runId, id), {
+          tool: text(toolCall.name) || undefined,
+          arguments: toolCall.arguments
+        });
+      }
+    }
+    if (event.eventType === 'tool.call.start') {
+      const id = text(event.payload.toolCallId);
+      if (!id) continue;
+      const key = toolKey(event.runId, id);
+      result.set(key, { ...(result.get(key) ?? {}), tool: text(event.payload.tool) || undefined });
+    }
+  }
+  return result;
 }
 
 function mapArtifacts(event: TraceEvent) {
@@ -246,6 +396,14 @@ export function importTraceJsonl(content: string) {
   });
   db.exec('BEGIN');
   try {
+    const runToAgent = new Map<string, string>();
+    const splitLLM = buildSplitLLMIndex(events);
+    const splitTools = buildSplitToolIndex(events);
+    for (const event of events) {
+      if (event.eventType === 'run.start' && event.runId && event.payload?.agentId) {
+        runToAgent.set(event.runId, String(event.payload.agentId));
+      }
+    }
     for (const event of events) {
       ensureParents(event);
       run(`INSERT OR REPLACE INTO raw_trace_events VALUES (?, ?, ?, ?, ?, ?)`,
@@ -253,13 +411,13 @@ export function importTraceJsonl(content: string) {
       mapRun(event);
       mapTurn(event);
       mapSpan(event);
-      mapContext(event);
+      mapContext(event, runToAgent);
       mapSkillSelection(event);
       mapPermissionDecision(event);
       mapFailure(event);
       mapReplaySnapshot(event);
-      mapLLM(event);
-      mapTool(event);
+      mapLLM(event, splitLLM);
+      mapTool(event, splitTools);
       mapArtifacts(event);
     }
     db.exec('COMMIT');

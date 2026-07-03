@@ -54,6 +54,26 @@ describe('trace import service', () => {
     expect(get<{ n: number }>('SELECT COUNT(*) AS n FROM tool_calls')?.n).toBe(1);
   });
 
+  it('maps split xiao-niu-ma trace events into normalized run, llm, and tool rows', () => {
+    const events = [
+      { eventId: 'xs1', eventType: 'run.start', timestamp: '2026-07-03T03:33:48.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', payload: { name: 'split run', agentId: 'xiao-niu-ma' } },
+      { eventId: 'xs2', eventType: 'context.build', timestamp: '2026-07-03T03:33:49.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_ctx_1', payload: { contextSnapshotId: 'ctx_x1', messageCount: 2, toolCount: 1, promptChars: 120 } },
+      { eventId: 'xs3', eventType: 'llm.request.start', timestamp: '2026-07-03T03:33:50.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_llm_1', parentSpanId: 'span_ctx_1', payload: { model: 'runtime-engine', messageCount: 3, toolCount: 1 } },
+      { eventId: 'xs4', eventType: 'llm.usage', timestamp: '2026-07-03T03:33:51.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_llm_1', parentSpanId: 'span_ctx_1', payload: { usage: { promptTokens: 100, completionTokens: 20, totalTokens: 120, maxTokens: 200000, cacheHitTokens: 40 } } },
+      { eventId: 'xs5', eventType: 'assistant.message', timestamp: '2026-07-03T03:33:52.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_llm_1', parentSpanId: 'span_ctx_1', payload: { messageId: 'asst_x1', content: 'done', reasoning: 'thinking', finishReason: 'tool_calls', toolCallCount: 1 } },
+      { eventId: 'xs6', eventType: 'tool.batch.start', timestamp: '2026-07-03T03:33:53.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_tools_1', payload: { iteration: 1, toolCalls: [{ id: 'call_x1', name: 'read_file', arguments: { path: '/tmp/a.txt' } }] } },
+      { eventId: 'xs7', eventType: 'tool.call.start', timestamp: '2026-07-03T03:33:54.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_tool_call_x1', payload: { toolCallId: 'call_x1', tool: 'read_file' } },
+      { eventId: 'xs8', eventType: 'tool.call.end', timestamp: '2026-07-03T03:33:55.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', spanId: 'span_tool_call_x1', payload: { toolCallId: 'call_x1', tool: 'read_file', success: true, output: 'file contents', latencyMs: 12 } },
+      { eventId: 'xs9', eventType: 'run.end', timestamp: '2026-07-03T03:33:56.000Z', sessionId: 'sx1', turnId: 'tx1', runId: 'rx1', payload: { status: 'success', stats: { totalDurationMs: 8000 }, tokenUsage: { promptTokens: 100, completionTokens: 20, totalTokens: 120, maxTokens: 200000 } } }
+    ];
+
+    expect(importTraceJsonl(events.map((event) => JSON.stringify(event)).join('\n'))).toEqual({ importedEvents: 9, runIds: ['rx1'] });
+    expect(get<{ latency_ms: number; total_tokens: number }>('SELECT latency_ms, total_tokens FROM runs WHERE id=?', 'rx1')).toMatchObject({ latency_ms: 8000, total_tokens: 120 });
+    expect(get<{ n: number }>('SELECT COUNT(*) AS n FROM llm_calls WHERE run_id=?', 'rx1')?.n).toBe(1);
+    expect(get<{ n: number }>('SELECT COUNT(*) AS n FROM tool_calls WHERE run_id=?', 'rx1')?.n).toBe(1);
+    expect(get<{ n: number }>('SELECT COUNT(*) AS n FROM spans WHERE run_id=?', 'rx1')?.n).toBeGreaterThan(1);
+  });
+
   it('rejects invalid JSONL with a useful line number', () => {
     expect(() => importTraceJsonl('{"eventId":"missing-fields"}')).toThrow('第 1 行');
   });
